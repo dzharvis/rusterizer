@@ -31,12 +31,6 @@ fn get_look_at() -> Matrix {
         vec![z.0, z.1, z.2],
     ]);//.transpose();
 
-    // let minv = Matrix(vec![
-    //     vec![1.0, 0.0, 0.0],
-    //     vec![0.0, 1.0, 0.0],
-    //     vec![0.0, 0.0, 1.0],
-    // ]).transpose();
-
     let tr = Matrix(vec![
         vec![1.0, 0.0, 0.0, c.0],
         vec![0.0, 1.0, 0.0, c.1],
@@ -44,8 +38,6 @@ fn get_look_at() -> Matrix {
     ]);
     
     let mv = minv.mul(&tr);
-    // let into = mv.mul(&v.into()).into();
-    // println!("{:?}", into);
     return mv;
 }
 
@@ -138,8 +130,8 @@ fn main() {
         let v2s = to_screen_space_f(&v2);
         let v3s = to_screen_space_f(&v3);
 
-        for y in ys0..ys1 {
-            for x in xs0..xs1 {
+        for y in ys0..=ys1 {
+            for x in xs0..=xs1 {
                 let bc = barycentric(&v1s, &v2s, &v3s, (x as f32, y as f32));
                 if bc.0 < 0.0 || bc.1 < 0.0 || bc.2 < 0.0 {
                     continue
@@ -181,8 +173,6 @@ fn main() {
 
     out_texture.apply_gamma(1.5);
     out_texture.write_to_tga("african_head.tga").unwrap();
-
-    // println!("{:?}", wf);
 }
 
 fn line(
@@ -201,9 +191,6 @@ fn line(
             mem::swap(&mut x1, &mut x0);
             mem::swap(&mut y1, &mut y0);
         }
-        // if y1 < y0 {
-        //     mem::swap(&mut y1, &mut y0);
-        // }
         for x in x0..=x1 {
             let t = ((x - x0) as f32) / ((x1 - x0) as f32);
             let y = (y0 as f32) * (1f32 - t) + (y1 as f32) * t;

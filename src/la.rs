@@ -71,18 +71,6 @@ impl Matrix {
         Matrix(vec![vec![0.0f32; x]; y])
     }
 
-    // pub fn random(x: usize, y: usize) -> Self {
-    //     let offset = Instant::now().checked_sub(Duration::new(1, 0)).unwrap();
-    //     fn get_row(x: usize, offset: Instant) -> Vec<f32> {
-    //         (0..x)
-    //         .map(|_| (Instant::now().duration_since(offset).as_nanos() % 17) as f32)
-    //         .collect()
-    //     }
-    //     Matrix((0..y)
-    //     .map(|_| get_row(x, offset))
-    //     .collect())
-    // }
-
     pub fn transpose(&self) -> Self {
         let mut res = Matrix::zeroed(self.0.len(), self.0[0].len());
         for x in 0..self.0[0].len() {

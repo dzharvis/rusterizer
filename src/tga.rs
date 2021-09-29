@@ -70,7 +70,6 @@ impl Image {
     }
 
     pub fn from_file(f: String) -> Self {
-        // fs::read
         #[repr(C, packed)]
         #[derive(Debug, Copy, Clone)]
         struct Header {
@@ -92,13 +91,11 @@ impl Image {
         let header_size = mem::size_of::<Header>();
         unsafe {
             let header_slice = slice::from_raw_parts_mut(&mut header as *mut _ as *mut u8, header_size);
-            // `read_exact()` comes from `Read` impl for `&[u8]`
             let mut f = File::open(f).unwrap();
             f.read_exact(header_slice).unwrap();
             
             let pixels = vec![ColorA(0,0,0,0); header.width as usize * header.height as usize];
             let pixels_size = mem::size_of::<ColorA>()*pixels.len();
-            // let pixels_size2 = 1*1024*1024*3;
             let data_ptr: *mut u8 = mem::transmute(&pixels[..][0]);
             let pixels_slice = slice::from_raw_parts_mut(data_ptr, pixels_size);
             f.read_exact(pixels_slice).unwrap();

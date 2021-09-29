@@ -2,9 +2,6 @@ use std::fs;
 
 use crate::la::Vec3f;
 
-// #[derive(Clone)]
-// pub struct Color(pub u8,pub u8,pub u8);
-
 #[derive(Clone, Debug)]
 pub struct Wavefront {
     pub vertices: Vec<Vec3f>,
@@ -33,7 +30,6 @@ impl Wavefront {
             if lc.starts_with("v ") {
                 let mut items = lc.split_ascii_whitespace();
                 items.next().unwrap(); // v
-                // println!("{:?}", n);
                 vertices.push(Vec3f(
                     items.next().unwrap().parse().unwrap(),
                     items.next().unwrap().parse().unwrap(),
@@ -43,7 +39,6 @@ impl Wavefront {
             if lc.starts_with("vn ") {
                 let mut items = lc.split_ascii_whitespace();
                 items.next().unwrap(); // vn
-                // println!("{:?}", n);
                 normals.push(Vec3f(
                     items.next().unwrap().parse().unwrap(),
                     items.next().unwrap().parse().unwrap(),
@@ -53,7 +48,6 @@ impl Wavefront {
             if lc.starts_with("vt ") {
                 let mut items = lc.split_ascii_whitespace();
                 items.next().unwrap(); // vt
-                // println!("{:?}", n);
                 tc.push((
                     items.next().unwrap().parse().unwrap(),
                     items.next().unwrap().parse().unwrap(),
