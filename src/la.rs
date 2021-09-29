@@ -6,6 +6,15 @@ impl Vec3f {
         Vec3f(0.0, 0.0, 0.0)
     }
 
+    pub fn embed(&self, l: usize) -> Matrix {
+        assert!(l > 3);
+        let mut v = vec![vec![1.0f32]; l];
+        v[0][0] = self.0;
+        v[1][0] = self.1;
+        v[2][0] = self.2;
+        Matrix(v)
+    }
+
     pub fn cross(&self, v: &Vec3f) -> Self {
         Vec3f(
             self.1 * v.2 - self.2 * v.1,
@@ -25,6 +34,14 @@ impl Vec3f {
 
     pub fn add(&self, v: &Vec3f) -> Self {
         Vec3f(self.0 + v.0, self.1 + v.1, self.2 + v.2)
+    }
+
+    pub fn mul(&self, v: &Vec3f) -> f32 {
+        self.0 * v.0 + self.1 * v.1 + self.2 * v.2
+    }
+
+    pub fn mulf(&self, v: f32) -> f32 {
+        self.0 * v + self.1 * v + self.2 * v
     }
 }
 
