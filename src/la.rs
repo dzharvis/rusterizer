@@ -98,6 +98,23 @@ impl Matrix {
     }
 }
 
+pub fn find_t(a: f32, b: f32, m: f32) -> f32 {
+    (m - a) / (b - a)
+}
+
+pub fn interpolate(a: f32, b: f32, t: f32) -> f32 {
+    a * (1f32 - t) + b * t
+}
+
+pub fn interpolatev(a: &Vec3f, b: &Vec3f, t: f32) -> Vec3f {
+    Vec3f(interpolate(a.0, b.0, t), interpolate(a.1, b.1, t), interpolate(a.2, b.2, t))
+}
+
+pub fn barycentric(a: &Vec3f, b: &Vec3f, c: &Vec3f, p: (f32, f32)) -> Vec3f {
+    let cross = Vec3f(c.0 - a.0, b.0 - a.0, a.0 - p.0).cross(&Vec3f(c.1 - a.1, b.1 - a.1, a.1 - p.1));
+    Vec3f(1.0 - (cross.1 + cross.0)/cross.2, cross.1/cross.2, cross.0/cross.2,)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
