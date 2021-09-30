@@ -81,9 +81,11 @@ impl Shader for BasicShader<'_> {
 
         let normal_vec = Vec3f(((normal.0 as f32 / 255.0) * 2.) - 1., ((normal.1 as f32 / 255.0) * 2.) - 1., ((normal.2 as f32 / 255.0) * 2.) - 1.).normalize();
         let light = normal_vec.mul(&self.light_dir);
+        let light_spec = normal_vec.mul(&Vec3f(0.0, 0.0, 1.0)).max(0.0).powf(20.0);
+        // let light_spec = 0.0f32;//normal_vec.mul(&Vec3f(-0.5, 0.3, 1.0)).max(0.0).powf(20.0);
 
         // self.outTexture.set_pixel(x, y, txt);
-        self.out_texture.set_pixel(x, y, txt.highlight(light));
+        self.out_texture.set_pixel(x, y, txt.highlight(light_spec*0.2 + light));
         self.z_buffer.set_pixel(x, y, tga::Color(z, z, z))
         // }
     }
@@ -94,7 +96,7 @@ fn persp(c: f32, v1: &Vec3f) -> Vec3f {
 }
 
 fn get_look_at() -> Matrix {
-    let p = Vec3f(0.5, 0.3, 1.0);
+    let p = Vec3f(-0.7, 0.3, 1.0);
     let up = Vec3f(0.0, 1.0, 0.0);
     let c = Vec3f(0.0, 0.0, 0.0);
 
@@ -129,8 +131,8 @@ fn to_screen_space(v: &Vec3f, width: i32, height: i32) -> Vec3f {
 }
 
 fn main() {
-    let width: i32 = 1000;
-    let height: i32 = 1000;
+    let width: i32 = 3000;
+    let height: i32 = 3000;
     let mut out_texture = tga::Image::new(width, height);
     let mut z_buffer = tga::Image::new(width, height);
 
@@ -141,7 +143,7 @@ fn main() {
     let lookat = get_look_at();
 
     let mut shader = BasicShader {
-        light_dir: look_at(&lookat, &Vec3f(1.0, 1.0, 1.0)).normalize(),
+        light_dir: Vec3f(-1.0, 0.0, 5.0).normalize(),
         lookat_m: lookat,
         model: &model,
         mod_texture: &model_texture,
