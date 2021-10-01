@@ -6,9 +6,9 @@ impl Vec3f {
         Vec3f(0.0, 0.0, 0.0)
     }
 
-    pub fn embed(&self, l: usize) -> Matrix {
+    pub fn embed(&self, l: usize, i: f32) -> Matrix {
         assert!(l > 3);
-        let mut v = vec![vec![1.0f32]; l];
+        let mut v = vec![vec![i]; l];
         v[0][0] = self.0;
         v[1][0] = self.1;
         v[2][0] = self.2;
@@ -40,18 +40,14 @@ impl Vec3f {
         self.0 * v.0 + self.1 * v.1 + self.2 * v.2
     }
 
-    pub fn mulf(&self, v: f32) -> f32 {
-        self.0 * v + self.1 * v + self.2 * v
+    pub fn mulf(&self, v: f32) -> Vec3f {
+        Vec3f(self.0 * v, self.1 * v, self.2 * v)
     }
 }
 
 impl Into<Matrix> for &Vec3f {
     fn into(self) -> Matrix {
-        Matrix(vec![
-            vec![self.0], 
-            vec![self.1], 
-            vec![self.2]
-        ])
+        Matrix(vec![vec![self.0], vec![self.1], vec![self.2]])
     }
 }
 
@@ -60,15 +56,71 @@ pub struct Matrix(pub Vec<Vec<f32>>);
 
 impl Into<Vec3f> for Matrix {
     fn into(self) -> Vec3f {
-        assert!(self.0.len() == 3 && self.0[0].len() == 1);
-        Vec3f(self.0[0][0], self.0[1][0], self.0[2][0])
+        assert!(self.0[0].len() == 1);
+        return Vec3f(self.0[0][0], self.0[1][0], self.0[2][0]);
     }
 }
-
 
 impl Matrix {
     pub fn zeroed(x: usize, y: usize) -> Self {
         Matrix(vec![vec![0.0f32; x]; y])
+    }
+
+    pub fn ident(x: usize) -> Self {
+        let mut res = Matrix::zeroed(x, x);
+        for i in 0..x {
+            for j in 0..x {
+                res.0[i][j] = if i == j { 1.0 } else { 0.0 };
+            }
+        }
+        res
+    }
+
+    pub fn inverse(&self) -> Self {
+        assert!(self.0.len() == self.0[0].len());
+        let n = self.0.len();
+        let mut aug = {
+            let mut r = Matrix::zeroed(n * 2, n);
+            for y in 0..n {
+                for x in 0..n {
+                    r.0[y][x] = self.0[y][x];
+                }
+            }
+            for y in 0..n {
+                for x in 0..n {
+                    r.0[y][n + x] = if x == y { 1.0 } else { 0.0 };
+                }
+            }
+            r
+        };
+        for y in 0..n {
+            if aug.0[y][y] == 0.0f32 {
+                panic!("it's a bad idea to divide by zero");
+            }
+            for x in 0..n {
+                if x != y {
+                    let r = aug.0[x][y] / aug.0[y][y];
+                    for k in 0..n * 2 {
+                        aug.0[x][k] = aug.0[x][k] - r * aug.0[y][k];
+                    }
+                }
+            }
+        }
+
+        for y in 0..n {
+            for x in n..n * 2 {
+                aug.0[y][x] = aug.0[y][x] / aug.0[y][y];
+            }
+        }
+
+        let mut res = Matrix::zeroed(n, n);
+        for y in 0..n {
+            for x in n..n * 2 {
+                res.0[y][x - n] = aug.0[y][x];
+            }
+        }
+
+        return res;
     }
 
     pub fn transpose(&self) -> Self {
@@ -130,6 +182,17 @@ mod tests {
     //     }
     //     println!("{:?}, blackhole: {:?}", start.elapsed(), acc);
     // }
+
+    #[test]
+    fn test_matrix_inv() {
+        let m = Matrix(vec![
+            vec![1.0, 2.0, 1.0, 0.0],
+            vec![0.0, 2.0, 1.0, 3.0],
+            vec![1.0, 2.0, 0.0, 1.0],
+            vec![1.0, 2.0, 0.0, 3.0],
+        ]);
+        println!("{:?}", m.inverse());
+    }
 
     #[test]
     fn test_matrix() {

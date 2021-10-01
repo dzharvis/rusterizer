@@ -5,15 +5,16 @@ use std::io::Write;
 use std::mem;
 use std::slice;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 pub struct Color(pub u8,pub u8,pub u8);
 
 impl Color {
     pub fn highlight(self, p: f32) -> Self {
         let Color(r, g, b) = self;
-        let fr = ((r as f32) / 255.0).powf((1.3 - p)*1.5);
-        let fg = ((g as f32) / 255.0).powf((1.3 - p)*1.5);
-        let fb = ((b as f32) / 255.0).powf((1.3 - p)*1.5);
+        // Color((r as f32 *p).min(255.0) as u8, (g as f32 *p).min(255.0) as u8, (b  as f32 * p).min(255.0) as u8,)
+        let fr = ((r as f32) / 255.0).powf(1.0 - p/2.3);
+        let fg = ((g as f32) / 255.0).powf(1.0 - p/2.3);
+        let fb = ((b as f32) / 255.0).powf(1.0 - p/2.3);
         Color((fr * 255.0) as u8, (fg * 255.0) as u8, (fb * 255.0) as u8)
     }
 }
@@ -100,10 +101,21 @@ impl Image {
             let pixels_slice = slice::from_raw_parts_mut(data_ptr, pixels_size);
             f.read_exact(pixels_slice).unwrap();
 
+            let data_correct = {
+                let mut v = vec![Color(0,0,0); pixels.len()];
+                for y in 0..header.height {
+                    for x in 0..header.width {
+                        let p = &pixels[y as usize * header.width as usize + x as usize];
+                        v[((header.height - 1) - y) as usize * header.width as usize + x as usize] = Color(p.0, p.1, p.2);
+                    }
+                }
+                v
+            };
+            
             return Image {
                 width: header.width as i32,
                 height: header.height as i32,
-                data: pixels.iter().rev().map(|p| Color(p.0, p.1, p.2)).collect()
+                data: data_correct
             }
 
         }

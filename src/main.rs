@@ -1,9 +1,7 @@
 mod la;
 mod tga;
 mod wf;
-use std::{
-    mem::{self},
-};
+use std::{mem::{self}, ops::Mul};
 
 use la::Matrix;
 use la::Vec3f;
@@ -19,6 +17,7 @@ trait Shader {
 struct BasicShader<'a> {
     light_dir: Vec3f,
     lookat_m: Matrix,
+    lookat_mi: Matrix,
     model: &'a Wavefront,
     out_texture: &'a mut tga::Image,
     mod_texture: &'a tga::Image,
@@ -54,7 +53,8 @@ impl Shader for BasicShader<'_> {
         if bar.0 < 0.0 || bar.1 < 0.0 || bar.2 < 0.0 {
             return;
         }
-        let xyz = self.varying_xy.mul(&bar.into());
+        let bar_mtrx = bar.into();
+        let xyz = self.varying_xy.mul(&bar_mtrx);
         let x = xyz.0[0][0].round() as i32;
         let y = xyz.0[1][0].round() as i32;
         let z = xyz.0[2][0].round() as u8;
@@ -67,25 +67,26 @@ impl Shader for BasicShader<'_> {
             return;
         }
 
-        let tp = self.varying_uv.mul(&bar.into());
+        let tp = self.varying_uv.mul(&bar_mtrx);
+        let (u, v) = (tp.0[0][0], tp.0[1][0]);
 
-        // let xy = self.varying_xy.mul(&bar.into());
         let txt = self.mod_texture.pixel_at(
-            (tp.0[0][0] * self.mod_texture.width as f32).round() as i32,
-            (tp.0[1][0] * self.mod_texture.height as f32).round() as i32,
+            (u * self.mod_texture.width as f32).round() as i32,
+            (v * self.mod_texture.height as f32).round() as i32,
         );
         let normal = self.norm_texture.pixel_at(
-            (tp.0[0][0] * self.mod_texture.width as f32).round() as i32,
-            (tp.0[1][0] * self.mod_texture.height as f32).round() as i32,
+            (u * self.mod_texture.width as f32).round() as i32,
+            (v * self.mod_texture.height as f32).round() as i32,
         );
+        let normal_vec = Vec3f(((normal.2 as f32 / 255.0) * 2.) - 1., ((normal.1 as f32 / 255.0) * 2.) - 1., ((normal.0 as f32 / 255.0) * 2.) - 1.).normalize();
+        let normal_vec: Vec3f = self.lookat_mi.mul(&(normal_vec).embed(4, 0.0)).into();
+        let normal_vec = normal_vec.normalize();
+        
+        let light = normal_vec.mul(&self.light_dir).max(0.0);
+        let reflected = normal_vec.mulf(normal_vec.mul(&self.light_dir) * 2.0).sub(&self.light_dir).normalize();
+        let light_spec = reflected.2.max(0.0).powf(23.0); // cam on z
 
-        let normal_vec = Vec3f(((normal.0 as f32 / 255.0) * 2.) - 1., ((normal.1 as f32 / 255.0) * 2.) - 1., ((normal.2 as f32 / 255.0) * 2.) - 1.).normalize();
-        let light = normal_vec.mul(&self.light_dir);
-        let light_spec = normal_vec.mul(&Vec3f(0.0, 0.0, 1.0)).max(0.0).powf(20.0);
-        // let light_spec = 0.0f32;//normal_vec.mul(&Vec3f(-0.5, 0.3, 1.0)).max(0.0).powf(20.0);
-
-        // self.outTexture.set_pixel(x, y, txt);
-        self.out_texture.set_pixel(x, y, txt.highlight(light_spec*0.2 + light));
+        self.out_texture.set_pixel(x, y, txt.highlight(light_spec*0.9 + light));
         self.z_buffer.set_pixel(x, y, tga::Color(z, z, z))
         // }
     }
@@ -95,8 +96,7 @@ fn persp(c: f32, v1: &Vec3f) -> Vec3f {
     Vec3f(v1.0/(1.0-v1.2/c), v1.1/(1.0-v1.2/c), v1.2/(1.0-v1.2/c))
 }
 
-fn get_look_at() -> Matrix {
-    let p = Vec3f(-0.7, 0.3, 1.0);
+fn get_look_at(p: &Vec3f) -> Matrix {
     let up = Vec3f(0.0, 1.0, 0.0);
     let c = Vec3f(0.0, 0.0, 0.0);
 
@@ -105,23 +105,25 @@ fn get_look_at() -> Matrix {
     let y = z.cross(&x).normalize();
 
     let minv = Matrix(vec![
-        vec![x.0, x.1, x.2],
-        vec![y.0, y.1, y.2],
-        vec![z.0, z.1, z.2],
+        vec![x.0, x.1, x.2, 0.0],
+        vec![y.0, y.1, y.2, 0.0],
+        vec![z.0, z.1, z.2, 0.0],
+        vec![0.0, 0.0, 0.0, 1.0],
     ]); //.transpose();
 
     let tr = Matrix(vec![
-        vec![1.0, 0.0, 0.0, c.0],
-        vec![0.0, 1.0, 0.0, c.1],
-        vec![0.0, 0.0, 1.0, c.2],
+        vec![1.0, 0.0, 0.0, -c.0],
+        vec![0.0, 1.0, 0.0, -c.1],
+        vec![0.0, 0.0, 1.0, -c.2],
+        vec![0.0, 0.0, 1.0, 1.0],
     ]);
 
-    let mv = minv.mul(&tr);
+    let mv = minv.mul(&tr); // 4x4
     return mv;
 }
 
 fn look_at(m: &Matrix, v: &Vec3f) -> Vec3f {
-    m.mul(&v.embed(4)).into()
+    m.mul(&v.embed(4, 0.0)).into()
 }
 
 fn to_screen_space(v: &Vec3f, width: i32, height: i32) -> Vec3f {
@@ -131,20 +133,25 @@ fn to_screen_space(v: &Vec3f, width: i32, height: i32) -> Vec3f {
 }
 
 fn main() {
-    let width: i32 = 3000;
-    let height: i32 = 3000;
+    let width: i32 = 1000;
+    let height: i32 = 1000;
     let mut out_texture = tga::Image::new(width, height);
     let mut z_buffer = tga::Image::new(width, height);
 
     let model = Wavefront::parse("african_head.obj".to_string());
     let model_texture = tga::Image::from_file("textr23.tga".to_string());
     let model_normals = tga::Image::from_file("nm.tga".to_string());
+    
+    let campos = Vec3f(0.5, 0.5, 1.0);
+    let lookat = get_look_at(&campos);
+    let lookat_i = lookat.inverse().transpose();
+    let light_dir: Vec3f = look_at(&lookat, &Vec3f(01.0, -0.0, 0.5).normalize());
 
-    let lookat = get_look_at();
-
+    // println!("{:?}", lookat.mul(&lookat_i));
     let mut shader = BasicShader {
-        light_dir: Vec3f(-1.0, 0.0, 5.0).normalize(),
+        light_dir: light_dir.normalize(),
         lookat_m: lookat,
+        lookat_mi: lookat_i,
         model: &model,
         mod_texture: &model_texture,
         out_texture: &mut out_texture,
