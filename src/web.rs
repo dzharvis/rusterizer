@@ -16,9 +16,6 @@ use crate::wf::Wavefront;
 use crate::{get_look_at, look_at, triangle, BasicShader, Shader, ShaderConf};
 
 pub enum Msg {
-    Noop,
-    Render(),
-    ReRender(),
     Texture(Vec<u8>),
     Model(Vec<u8>),
     Normals(Vec<u8>),
@@ -152,7 +149,6 @@ impl Component for Model {
 
     fn update(&mut self, msg: Self::Message) -> yew::ShouldRender {
         match msg {
-            Msg::Noop => false,
             Msg::Diff => {
                 self.conf = ShaderConf {
                     diff_light: !self.conf.diff_light,
@@ -191,38 +187,26 @@ impl Component for Model {
                 true
                 // self.campos
             }
-            Msg::Render() => {
-                self.load_binary("textr23.tga".to_owned(), |v| Msg::Texture(v));
-                self.load_binary("nm.tga".to_owned(), |v| Msg::Normals(v));
-                self.load_binary("african_head.obj".to_owned(), |v| Msg::Model(v));
-                false
-            }
-            Msg::ReRender() => {
-                if self.ready() {
-                    self.render();
-                }
-                false
-            }
             Msg::Texture(v) => {
                 self.texture = Some(Image::from_raw_vec(v));
                 if self.ready() {
                     self.render();
                 }
-                false
+                true
             }
             Msg::Normals(v) => {
                 self.normals = Some(Image::from_raw_vec(v));
                 if self.ready() {
                     self.render();
                 }
-                false
+                true
             }
             Msg::Model(v) => {
                 self.model = Some(Wavefront::parse_string(String::from_utf8(v).unwrap()));
                 if self.ready() {
                     self.render();
                 }
-                false
+                true
             }
         }
     }
@@ -234,24 +218,28 @@ impl Component for Model {
                 <canvas ref={self.node_ref.clone()} width="512" height="512" />
                 <div style="display: flex;align-items: flex-start;flex-direction: column;">
                     // <button onclick=self.link.callback(|_| Msg::ReRender())>{ "ReRender" }</button>
-                    <div style="display: flex;align-items: flex-start">
-                        <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x+0.1, y, z)))>{ "+" }</button>
-                        { "x: " }{ format!("{:.2}", x) }
-                        <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x-0.1, y, z)))>{ "-" }</button>
-                    </div>
-                    <div style="display: flex;align-items: flex-start">
-                        <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x, y+0.1, z)))>{ "+" }</button>
-                        { "y: " }{ format!("{:.2}", y) }
-                        <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x, y-0.1, z)))>{ "-" }</button>
-                    </div>
-                    <div style="display: flex;align-items: flex-start">
-                        <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x, y, z+0.1)))>{ "+" }</button>
-                        { "z: " }{ format!("{:.2}", z) }
-                        <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x, y, z-0.1)))>{ "-" }</button>
-                    </div>
-                    <button onclick=self.link.callback(move |_| Msg::Diff)>{ "Diffuse light" }</button>
-                    <button onclick=self.link.callback(move |_| Msg::Spec)>{ "Specular light" }</button>
-                    <button onclick=self.link.callback(move |_| Msg::Txt)>{ "Texture" }</button>
+                    { if self.ready() { html! {
+                        <>
+                            <div style="display: flex;align-items: flex-start">
+                                <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x+0.1, y, z)))>{ "+" }</button>
+                                { "x: " }{ format!("{:.2}", x) }
+                                <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x-0.1, y, z)))>{ "-" }</button>
+                            </div>
+                            <div style="display: flex;align-items: flex-start">
+                                <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x, y+0.1, z)))>{ "+" }</button>
+                                { "y: " }{ format!("{:.2}", y) }
+                                <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x, y-0.1, z)))>{ "-" }</button>
+                            </div>
+                            <div style="display: flex;align-items: flex-start">
+                                <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x, y, z+0.1)))>{ "+" }</button>
+                                { "z: " }{ format!("{:.2}", z) }
+                                <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x, y, z-0.1)))>{ "-" }</button>
+                            </div>
+                            <button onclick=self.link.callback(move |_| Msg::Diff)>{ "Diffuse light" }</button>
+                            <button onclick=self.link.callback(move |_| Msg::Spec)>{ "Specular light" }</button>
+                            <button onclick=self.link.callback(move |_| Msg::Txt)>{ "Texture" }</button>
+                        </>
+                    } } else { html! { "Loading model.." } } }
                 </div>
             </div>
         }
