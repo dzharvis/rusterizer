@@ -15,8 +15,13 @@ impl Wavefront {
         Wavefront { vertices, texture_coord, normals, faces, }
     }
 
-    pub fn parse(file: String) -> Self {
+    pub fn parse_file(file: String) -> Self {
         let contents = fs::read_to_string(file).expect("Something went wrong reading the file");
+        Wavefront::parse_string(contents)
+    }
+
+    pub fn parse_string(contents: String) -> Self {
+        // let contents = fs::read_to_string(file).expect("Something went wrong reading the file");
         let lines = contents.lines();
         let mut vertices: Vec<Vec3f> = Vec::new();
         let mut normals: Vec<Vec3f> = Vec::new();

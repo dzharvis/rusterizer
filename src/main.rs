@@ -1,6 +1,17 @@
+#[cfg(not(feature = "local"))]
+extern crate yew;
+
+#[cfg(not(feature = "local"))]
+extern crate anyhow;
+
 mod la;
 mod tga;
 mod wf;
+#[cfg(not(feature = "local"))]
+mod web;
+#[cfg(not(feature = "local"))]
+use web::web;
+
 use std::{mem::{self}, ops::Mul};
 
 use la::Matrix;
@@ -132,6 +143,12 @@ fn to_screen_space(v: &Vec3f, width: i32, height: i32) -> Vec3f {
     Vec3f(x0, y0, ((v.2 + 1.) / 2.) * 255.0)
 }
 
+#[cfg(not(feature = "local"))]
+fn main() {
+    web();
+}
+
+#[cfg(feature = "local")]
 fn main() {
     let width: i32 = 1000;
     let height: i32 = 1000;

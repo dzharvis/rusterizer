@@ -1,5 +1,6 @@
 use std::io;
 use std::fs::File;
+use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
 use std::mem;
@@ -25,7 +26,7 @@ pub struct ColorA(pub u8,pub u8,pub u8,pub u8);
 pub struct Image {
     pub width: i32,
     pub height: i32,
-    data: Vec<Color>,
+    pub data: Vec<Color>,
 }
 
 unsafe fn struct_to_u8_slice<T>(s: &T) -> &[u8] {
@@ -68,6 +69,76 @@ impl Image {
 
     pub fn set_pixel(self: &mut Image, x: i32, y: i32, c: Color) {
         self.data[(x + y * self.width) as usize] = c;
+    }
+
+    pub fn get_raw_bytes(&self) -> Vec<u8> {
+        let mut res: Vec<u8> = Vec::new();
+
+        let mut flipped: Vec<Color> = vec![Color(0, 0, 0,); (self.width*self.height) as usize];
+        for y in 0..self.height {
+            for x in 0..self.width {
+                flipped[(x + ((self.height - 1) - y)*self.width) as usize] = self.data[(x + y*self.width) as usize].clone()
+            }
+        }
+
+        for Color(r, g, b) in flipped {
+            res.push(b);
+            res.push(g);
+            res.push(r);
+            res.push(255);
+        }
+        res
+    }
+
+    pub fn from_raw_vec(v: Vec<u8>) -> Self {
+        #[repr(C, packed)]
+        #[derive(Debug, Copy, Clone)]
+        struct Header {
+            id_length: u8,
+            color_map_type: u8,
+            image_type: u8,
+            c_map_start: u16,
+            c_map_length: u16,
+            c_map_depth: u8,
+            x_offset: u16,
+            y_offset: u16,
+            width: u16,
+            height: u16,
+            pixel_depth: u8,
+            image_descriptor: u8,
+        }
+
+        let mut header: Header = unsafe { mem::zeroed() };
+        let header_size = mem::size_of::<Header>();
+        unsafe {
+            let header_slice = slice::from_raw_parts_mut(&mut header as *mut _ as *mut u8, header_size);
+            let mut r = BufReader::new(&v[..]);
+            r.read_exact(header_slice).unwrap();
+            
+            let pixels = vec![ColorA(0,0,0,0); header.width as usize * header.height as usize];
+            let pixels_size = mem::size_of::<ColorA>()*pixels.len();
+            let data_ptr: *mut u8 = mem::transmute(&pixels[..][0]);
+            let pixels_slice = slice::from_raw_parts_mut(data_ptr, pixels_size);
+            r.read_exact(pixels_slice).unwrap();
+
+            let data_correct = {
+                let mut v = vec![Color(0,0,0); pixels.len()];
+                for y in 0..header.height {
+                    for x in 0..header.width {
+                        let p = &pixels[y as usize * header.width as usize + x as usize];
+                        v[((header.height - 1) - y) as usize * header.width as usize + x as usize] = Color(p.0, p.1, p.2);
+                    }
+                }
+                v
+            };
+            
+            return Image {
+                width: header.width as i32,
+                height: header.height as i32,
+                data: data_correct
+            }
+
+        }
     }
 
     pub fn from_file(f: String) -> Self {
