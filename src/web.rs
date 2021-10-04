@@ -6,7 +6,7 @@ use web_sys::console;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData};
 use yew::format::{Bincode, Json, Nothing};
 use yew::html::Scope;
-use yew::services::fetch::{FetchTask, Request, Response};
+use yew::services::fetch::{FetchTask, Request, Response, Uri};
 use yew::services::FetchService;
 use yew::{html, ChangeData, Component, Html, NodeRef};
 
@@ -23,10 +23,12 @@ pub enum Msg {
     Diff,
     Spec,
     Txt,
+    Zbuff,
 }
 
 pub struct Model {
     conf: ShaderConf,
+    zbuff: bool,
     node_ref: NodeRef,
     props: (),
     link: yew::ComponentLink<Self>,
@@ -85,7 +87,7 @@ impl Model {
             .unwrap()
             .dyn_into()
             .unwrap();
-        let img = out_texture.get_raw_bytes();
+        let img = if self.zbuff { z_buffer } else { out_texture }.get_raw_bytes();
         let id = ImageData::new_with_u8_clamped_array(Clamped(&img[..]), 512).unwrap();
         ctx.put_image_data(&id, 0.0, 0.0).unwrap();
     }
@@ -95,7 +97,7 @@ impl Model {
     }
 
     fn load_binary(&mut self, url: String, dispatch: fn(Vec<u8>) -> Msg) {
-        let get_request = Request::get(url)
+        let get_request = Request::get(Uri::builder().path_and_query(url).build().unwrap())
             .body(Nothing)
             .expect("Could not build that request");
         let callback = self
@@ -127,6 +129,7 @@ impl Component for Model {
 
     fn create(props: Self::Properties, link: yew::ComponentLink<Self>) -> Self {
         Self {
+            zbuff: false,
             conf: ShaderConf::new(),
             task: Vec::new(),
             link: link,
@@ -141,14 +144,21 @@ impl Component for Model {
 
     fn rendered(&mut self, first_render: bool) {
         if first_render {
-            self.load_binary("textr23.tga".to_owned(), |v| Msg::Texture(v));
-            self.load_binary("nm.tga".to_owned(), |v| Msg::Normals(v));
-            self.load_binary("african_head.obj".to_owned(), |v| Msg::Model(v));
+            self.load_binary("./african_head/texture.tga".to_owned(), |v| Msg::Texture(v));
+            self.load_binary("./african_head/normals.tga".to_owned(), |v| Msg::Normals(v));
+            self.load_binary("./african_head/model.obj".to_owned(), |v| Msg::Model(v));
         }
     }
 
     fn update(&mut self, msg: Self::Message) -> yew::ShouldRender {
         match msg {
+            Msg::Zbuff => {
+                self.zbuff = !self.zbuff;
+                if self.ready() {
+                    self.render();
+                }
+                true
+            }
             Msg::Diff => {
                 self.conf = ShaderConf {
                     diff_light: !self.conf.diff_light,
@@ -235,9 +245,10 @@ impl Component for Model {
                                 { "z: " }{ format!("{:.2}", z) }
                                 <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x, y, z-0.1)))>{ "-" }</button>
                             </div>
-                            <button onclick=self.link.callback(move |_| Msg::Diff)>{ "Diffuse light" }</button>
-                            <button onclick=self.link.callback(move |_| Msg::Spec)>{ "Specular light" }</button>
-                            <button onclick=self.link.callback(move |_| Msg::Txt)>{ "Texture" }</button>
+                            <button disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Diff)>{ "Diffuse light" }</button>
+                            <button disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Spec)>{ "Specular light" }</button>
+                            <button disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Txt)>{ "Texture" }</button>
+                            <button onclick=self.link.callback(move |_| Msg::Zbuff)>{ "Z Buffer" }</button>
                         </>
                     } } else { html! { "Loading model.." } } }
                 </div>

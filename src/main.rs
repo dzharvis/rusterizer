@@ -202,9 +202,9 @@ fn main() {
     let mut out_texture = tga::Image::new(width, height);
     let mut z_buffer = tga::Image::new(width, height);
 
-    let model = Wavefront::parse("african_head.obj".to_string());
-    let model_texture = tga::Image::from_file("textr23.tga".to_string());
-    let model_normals = tga::Image::from_file("nm.tga".to_string());
+    let model = Wavefront::parse_file("./res/african_head/model.obj".to_string());
+    let model_texture = tga::Image::from_file("./res/african_head/texture.tga".to_string());
+    let model_normals = tga::Image::from_file("./res/african_head/normals.tga".to_string());
 
     let campos = Vec3f(0.5, 0.5, 1.0);
     let lookat = get_look_at(&campos);
@@ -213,6 +213,7 @@ fn main() {
 
     // println!("{:?}", lookat.mul(&lookat_i));
     let mut shader = BasicShader {
+        conf: ShaderConf::new(),
         light_dir: light_dir.normalize(),
         lookat_m: lookat,
         lookat_mi: lookat_i,

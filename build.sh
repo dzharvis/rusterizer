@@ -1,7 +1,4 @@
 trunk build --release
-cp african_head.obj ./dist/
-cp nm.tga ./dist/
-cp textr23.tga ./dist/
 cd dist
 
 pattern="index-*_bg.wasm"
@@ -24,8 +21,13 @@ EOM
 
 rm -rf ../docs/*
 
-for f in ./*; do
+mkdir ../docs/african_head
+cp ../res/african_head/model.obj ../docs/african_head/
+cp ../res/african_head/normals.tga ../docs/african_head/
+cp ../res/african_head/texture.tga ../docs/african_head/
+
+for f in `ls -p | grep -v /`; do
     cp $f ../docs/
 done
 
-(python -m http.server 8081)
+(cd ../docs; python -m http.server 8081)
