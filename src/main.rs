@@ -13,10 +13,7 @@ use tga::Color;
 #[cfg(not(feature = "local"))]
 use web::web;
 
-use std::{
-    mem::{self},
-    ops::Mul,
-};
+use std::mem::{self};
 
 use la::Matrix;
 use la::Vec3f;
@@ -29,6 +26,7 @@ struct ShaderConf {
     diff_light: bool,
     spec_light: bool,
     texture: bool,
+    normals: bool,
 }
 
 impl ShaderConf {
@@ -37,6 +35,7 @@ impl ShaderConf {
             diff_light: true,
             spec_light: true,
             texture: true,
+            normals: true,
         }
     }
 }
@@ -59,6 +58,7 @@ struct BasicShader<'a> {
 
     varying_uv: Matrix, // 3x2
     varying_xy: Matrix, // 3x3
+    n: Option<Vec3f>,   // 3x3
 }
 
 impl Shader for BasicShader<'_> {
@@ -71,14 +71,45 @@ impl Shader for BasicShader<'_> {
             self.varying_uv.0[i][vertex] = t[i];
         }
 
+        let persp = persp(10.0, &look_at(&self.lookat_m, v));
         let ss = to_screen_space(
-            &persp(10.0, &look_at(&self.lookat_m, v)),
+            &persp,
             self.out_texture.width,
             self.out_texture.height,
         );
+
         self.varying_xy.0[0][vertex] = ss.0;
         self.varying_xy.0[1][vertex] = ss.1;
         self.varying_xy.0[2][vertex] = ss.2;
+
+        // todo refactor
+        if vertex == 2 {
+            self.n = Some(
+                Vec3f(
+                    self.varying_xy.0[0][1],
+                    self.varying_xy.0[1][1],
+                    self.varying_xy.0[2][1],
+                )
+                .sub(&Vec3f(
+                    self.varying_xy.0[0][0],
+                    self.varying_xy.0[1][0],
+                    self.varying_xy.0[2][0],
+                ))
+                .cross(
+                    &Vec3f(
+                        self.varying_xy.0[0][2],
+                        self.varying_xy.0[1][2],
+                        self.varying_xy.0[2][2],
+                    )
+                    .sub(&Vec3f(
+                        self.varying_xy.0[0][1],
+                        self.varying_xy.0[1][1],
+                        self.varying_xy.0[2][1],
+                    )),
+                ).normalize(),
+            );
+        }
+
         ss
     }
 
@@ -115,13 +146,19 @@ impl Shader for BasicShader<'_> {
             (u * self.mod_texture.width as f32).round() as i32,
             (v * self.mod_texture.height as f32).round() as i32,
         );
-        let normal_vec = Vec3f(
+        let normal_vec = if self.conf.normals {
+            let nv = Vec3f(
             ((normal.2 as f32 / 255.0) * 2.) - 1.,
             ((normal.1 as f32 / 255.0) * 2.) - 1.,
             ((normal.0 as f32 / 255.0) * 2.) - 1.,
         )
         .normalize();
-        let normal_vec: Vec3f = self.lookat_mi.mul(&(normal_vec).embed(4, 0.0)).into();
+        let normal_vec: Vec3f = self.lookat_mi.mul(&(nv).embed(4, 0.0)).into();
+        normal_vec
+    } else {
+            self.n.as_ref().unwrap().clone()
+        };
+        // let normal_vec: Vec3f = self.lookat_mi.mul(&(normal_vec).embed(4, 0.0)).into();
         let normal_vec = normal_vec.normalize();
 
         let light = normal_vec.mul(&self.light_dir).max(0.0);

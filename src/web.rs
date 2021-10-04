@@ -1,14 +1,10 @@
-use std::borrow::Borrow;
-
-use anyhow::{anyhow, Error};
+use anyhow::{Error};
 use wasm_bindgen::{Clamped, JsCast};
-use web_sys::console;
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData};
-use yew::format::{Bincode, Json, Nothing};
-use yew::html::Scope;
+use yew::format::{Nothing};
 use yew::services::fetch::{FetchTask, Request, Response, Uri};
 use yew::services::FetchService;
-use yew::{html, ChangeData, Component, Html, NodeRef};
+use yew::{html, Component, Html, NodeRef};
 
 use crate::la::{Matrix, Vec3f};
 use crate::tga::Image;
@@ -24,6 +20,7 @@ pub enum Msg {
     Spec,
     Txt,
     Zbuff,
+    Norm,
 }
 
 pub struct Model {
@@ -56,6 +53,7 @@ impl Model {
         let texture = self.texture.as_ref().unwrap();
         let mut shader = BasicShader {
             conf: self.conf.clone(),
+            n: None,
             light_dir: light_dir.normalize(),
             lookat_m: lookat,
             lookat_mi: lookat_i,
@@ -103,10 +101,8 @@ impl Model {
         let callback = self
             .link
             .callback(move |response: Response<Result<Vec<u8>, Error>>| {
-                let data = response.into_body();
-                let r = data.unwrap();
-                dispatch(r)
-                // Msg::Texture(r)
+                let data = response.into_body().unwrap();
+                dispatch(data)
             });
         let task =
             FetchService::fetch_binary(get_request, callback).expect("failed to start request");
@@ -132,8 +128,8 @@ impl Component for Model {
             zbuff: false,
             conf: ShaderConf::new(),
             task: Vec::new(),
-            link: link,
-            props: props,
+            link,
+            props,
             node_ref: NodeRef::default(),
             texture: None,
             model: None,
@@ -154,6 +150,16 @@ impl Component for Model {
         match msg {
             Msg::Zbuff => {
                 self.zbuff = !self.zbuff;
+                if self.ready() {
+                    self.render();
+                }
+                true
+            }
+            Msg::Norm => {
+                self.conf = ShaderConf {
+                    normals: !self.conf.normals,
+                    ..self.conf
+                };
                 if self.ready() {
                     self.render();
                 }
@@ -195,7 +201,6 @@ impl Component for Model {
                     self.render();
                 }
                 true
-                // self.campos
             }
             Msg::Texture(v) => {
                 self.texture = Some(Image::from_raw_vec(v));
@@ -227,7 +232,6 @@ impl Component for Model {
             <div style="display: flex;justify-content: center;align-items: center">
                 <canvas ref={self.node_ref.clone()} width="512" height="512" />
                 <div style="display: flex;align-items: flex-start;flex-direction: column;">
-                    // <button onclick=self.link.callback(|_| Msg::ReRender())>{ "ReRender" }</button>
                     { if self.ready() { html! {
                         <>
                             <div style="display: flex;align-items: flex-start">
@@ -248,6 +252,7 @@ impl Component for Model {
                             <button disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Diff)>{ "Diffuse light" }</button>
                             <button disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Spec)>{ "Specular light" }</button>
                             <button disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Txt)>{ "Texture" }</button>
+                            <button disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Norm)>{ "Normal map" }</button>
                             <button onclick=self.link.callback(move |_| Msg::Zbuff)>{ "Z Buffer" }</button>
                         </>
                     } } else { html! { "Loading model.." } } }
