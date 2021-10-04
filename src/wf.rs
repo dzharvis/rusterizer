@@ -11,8 +11,18 @@ pub struct Wavefront {
 }
 
 impl Wavefront {
-    pub fn new(vertices: Vec<Vec3f>, faces: Vec<([i32; 3], [i32; 3])>, normals: Vec<Vec3f>, texture_coord: Vec<[f32; 2]>) -> Self {
-        Wavefront { vertices, texture_coord, normals, faces, }
+    pub fn new(
+        vertices: Vec<Vec3f>,
+        faces: Vec<([i32; 3], [i32; 3])>,
+        normals: Vec<Vec3f>,
+        texture_coord: Vec<[f32; 2]>,
+    ) -> Self {
+        Wavefront {
+            vertices,
+            texture_coord,
+            normals,
+            faces,
+        }
     }
 
     pub fn parse_file(file: String) -> Self {
@@ -75,7 +85,7 @@ impl Wavefront {
                         f1.next().unwrap().parse::<i32>().unwrap() - 1,
                         f2.next().unwrap().parse::<i32>().unwrap() - 1,
                         f3.next().unwrap().parse::<i32>().unwrap() - 1,
-                    ]
+                    ],
                 ))
             }
         }

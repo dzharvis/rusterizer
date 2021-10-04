@@ -6,13 +6,17 @@ extern crate anyhow;
 
 mod la;
 mod tga;
-mod wf;
 #[cfg(not(feature = "local"))]
 mod web;
+mod wf;
+use tga::Color;
 #[cfg(not(feature = "local"))]
 use web::web;
 
-use std::{mem::{self}, ops::Mul};
+use std::{
+    mem::{self},
+    ops::Mul,
+};
 
 use la::Matrix;
 use la::Vec3f;
@@ -20,12 +24,30 @@ use wf::Wavefront;
 
 use crate::la::barycentric;
 
+#[derive(Debug, Clone)]
+struct ShaderConf {
+    diff_light: bool,
+    spec_light: bool,
+    texture: bool,
+}
+
+impl ShaderConf {
+    pub fn new() -> Self {
+        ShaderConf {
+            diff_light: true,
+            spec_light: true,
+            texture: true,
+        }
+    }
+}
+
 trait Shader {
     fn vertex(&mut self, face: usize, vertex: usize) -> Vec3f;
     fn fragment(&mut self, bar: &Vec3f);
 }
 
 struct BasicShader<'a> {
+    conf: ShaderConf,
     light_dir: Vec3f,
     lookat_m: Matrix,
     lookat_mi: Matrix,
@@ -81,30 +103,55 @@ impl Shader for BasicShader<'_> {
         let tp = self.varying_uv.mul(&bar_mtrx);
         let (u, v) = (tp.0[0][0], tp.0[1][0]);
 
-        let txt = self.mod_texture.pixel_at(
-            (u * self.mod_texture.width as f32).round() as i32,
-            (v * self.mod_texture.height as f32).round() as i32,
-        );
+        let txt = if self.conf.texture {
+            self.mod_texture.pixel_at(
+                (u * self.mod_texture.width as f32).round() as i32,
+                (v * self.mod_texture.height as f32).round() as i32,
+            )
+        } else {
+            Color(150, 150, 150)
+        };
         let normal = self.norm_texture.pixel_at(
             (u * self.mod_texture.width as f32).round() as i32,
             (v * self.mod_texture.height as f32).round() as i32,
         );
-        let normal_vec = Vec3f(((normal.2 as f32 / 255.0) * 2.) - 1., ((normal.1 as f32 / 255.0) * 2.) - 1., ((normal.0 as f32 / 255.0) * 2.) - 1.).normalize();
+        let normal_vec = Vec3f(
+            ((normal.2 as f32 / 255.0) * 2.) - 1.,
+            ((normal.1 as f32 / 255.0) * 2.) - 1.,
+            ((normal.0 as f32 / 255.0) * 2.) - 1.,
+        )
+        .normalize();
         let normal_vec: Vec3f = self.lookat_mi.mul(&(normal_vec).embed(4, 0.0)).into();
         let normal_vec = normal_vec.normalize();
-        
+
         let light = normal_vec.mul(&self.light_dir).max(0.0);
-        let reflected = normal_vec.mulf(normal_vec.mul(&self.light_dir) * 2.0).sub(&self.light_dir).normalize();
+        let reflected = normal_vec
+            .mulf(normal_vec.mul(&self.light_dir) * 2.0)
+            .sub(&self.light_dir)
+            .normalize();
         let light_spec = reflected.2.max(0.0).powf(23.0); // cam on z
 
-        self.out_texture.set_pixel(x, y, txt.highlight(light_spec*0.9 + light));
+        let mut highlight = 0.0f32;
+        highlight += if self.conf.diff_light { light } else { 0.0 };
+
+        highlight += if self.conf.spec_light {
+            light_spec * 0.9
+        } else {
+            0.0
+        };
+
+        self.out_texture.set_pixel(x, y, txt.highlight(highlight));
         self.z_buffer.set_pixel(x, y, tga::Color(z, z, z))
         // }
     }
 }
 
 fn persp(c: f32, v1: &Vec3f) -> Vec3f {
-    Vec3f(v1.0/(1.0-v1.2/c), v1.1/(1.0-v1.2/c), v1.2/(1.0-v1.2/c))
+    Vec3f(
+        v1.0 / (1.0 - v1.2 / c),
+        v1.1 / (1.0 - v1.2 / c),
+        v1.2 / (1.0 - v1.2 / c),
+    )
 }
 
 fn get_look_at(p: &Vec3f) -> Matrix {
@@ -158,7 +205,7 @@ fn main() {
     let model = Wavefront::parse("african_head.obj".to_string());
     let model_texture = tga::Image::from_file("textr23.tga".to_string());
     let model_normals = tga::Image::from_file("nm.tga".to_string());
-    
+
     let campos = Vec3f(0.5, 0.5, 1.0);
     let lookat = get_look_at(&campos);
     let lookat_i = lookat.inverse().transpose();

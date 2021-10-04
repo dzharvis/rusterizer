@@ -201,15 +201,9 @@ mod tests {
         //     get_angle(&(0.0, 0.0, 0.0), &(0.0, 0.0, 0.0), &(0.0, 0.0, 0.0))
         // );
         let mut m1 = Matrix::zeroed(3, 3);
-        m1.0 = vec![
-            vec![1.0, 1.1, 1.2],
-        ];
+        m1.0 = vec![vec![1.0, 1.1, 1.2]];
         let mut m2 = Matrix::zeroed(3, 3);
-        m2.0 = vec![
-            vec![1.0],
-            vec![2.0],
-            vec![3.0],
-        ];
+        m2.0 = vec![vec![1.0], vec![2.0], vec![3.0]];
 
         // let v = Vec3f(1.0, 2.0, 3.0);
 

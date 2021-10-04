@@ -8,12 +8,12 @@ use yew::format::{Bincode, Json, Nothing};
 use yew::html::Scope;
 use yew::services::fetch::{FetchTask, Request, Response};
 use yew::services::FetchService;
-use yew::{ChangeData, Component, Html, NodeRef, html};
+use yew::{html, ChangeData, Component, Html, NodeRef};
 
 use crate::la::{Matrix, Vec3f};
 use crate::tga::Image;
 use crate::wf::Wavefront;
-use crate::{get_look_at, look_at, triangle, BasicShader, Shader};
+use crate::{get_look_at, look_at, triangle, BasicShader, Shader, ShaderConf};
 
 pub enum Msg {
     Noop,
@@ -23,9 +23,13 @@ pub enum Msg {
     Model(Vec<u8>),
     Normals(Vec<u8>),
     Upd(Vec3f),
+    Diff,
+    Spec,
+    Txt,
 }
 
 pub struct Model {
+    conf: ShaderConf,
     node_ref: NodeRef,
     props: (),
     link: yew::ComponentLink<Self>,
@@ -52,6 +56,7 @@ impl Model {
         let model = self.model.as_ref().unwrap();
         let texture = self.texture.as_ref().unwrap();
         let mut shader = BasicShader {
+            conf: self.conf.clone(),
             light_dir: light_dir.normalize(),
             lookat_m: lookat,
             lookat_mi: lookat_i,
@@ -125,6 +130,7 @@ impl Component for Model {
 
     fn create(props: Self::Properties, link: yew::ComponentLink<Self>) -> Self {
         Self {
+            conf: ShaderConf::new(),
             task: Vec::new(),
             link: link,
             props: props,
@@ -146,7 +152,35 @@ impl Component for Model {
 
     fn update(&mut self, msg: Self::Message) -> yew::ShouldRender {
         match msg {
-            Msg::Noop => {
+            Msg::Noop => false,
+            Msg::Diff => {
+                self.conf = ShaderConf {
+                    diff_light: !self.conf.diff_light,
+                    ..self.conf
+                };
+                if self.ready() {
+                    self.render();
+                }
+                false
+            }
+            Msg::Spec => {
+                self.conf = ShaderConf {
+                    spec_light: !self.conf.spec_light,
+                    ..self.conf
+                };
+                if self.ready() {
+                    self.render();
+                }
+                false
+            }
+            Msg::Txt => {
+                self.conf = ShaderConf {
+                    texture: !self.conf.texture,
+                    ..self.conf
+                };
+                if self.ready() {
+                    self.render();
+                }
                 false
             }
             Msg::Upd(v) => {
@@ -215,6 +249,9 @@ impl Component for Model {
                         { "z: " }{ format!("{:.2}", z) }
                         <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x, y, z-0.1)))>{ "-" }</button>
                     </div>
+                    <button onclick=self.link.callback(move |_| Msg::Diff)>{ "Diffuse light" }</button>
+                    <button onclick=self.link.callback(move |_| Msg::Spec)>{ "Specular light" }</button>
+                    <button onclick=self.link.callback(move |_| Msg::Txt)>{ "Texture" }</button>
                 </div>
             </div>
         }
