@@ -6,9 +6,9 @@ impl Vec3f {
         Vec3f(0.0, 0.0, 0.0)
     }
 
-    pub fn embed(&self, l: usize, i: f32) -> Matrix {
-        assert!(l > 3);
-        let mut v = vec![vec![i]; l];
+    pub fn embed<const L: usize>(&self, i: f32) -> Matrix<1, L> {
+        assert!(L > 3);
+        let mut v = [[i]; L];
         v[0][0] = self.0;
         v[1][0] = self.1;
         v[2][0] = self.2;
@@ -45,42 +45,33 @@ impl Vec3f {
     }
 }
 
-impl Into<Matrix> for &Vec3f {
-    fn into(self) -> Matrix {
-        Matrix(vec![vec![self.0], vec![self.1], vec![self.2]])
+impl Into<Matrix<1, 3>> for &Vec3f {
+    fn into(self) -> Matrix<1, 3> {
+        Matrix([[self.0], [self.1], [self.2]])
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct Matrix(pub Vec<Vec<f32>>);
+pub struct Matrix<const X: usize, const Y: usize>(pub [[f32; X]; Y]);
 
-impl Into<Vec3f> for Matrix {
+impl<const T: usize> Into<Vec3f> for Matrix<1, T> {
     fn into(self) -> Vec3f {
         assert!(self.0[0].len() == 1);
         return Vec3f(self.0[0][0], self.0[1][0], self.0[2][0]);
     }
 }
 
-impl Matrix {
-    pub fn zeroed(x: usize, y: usize) -> Self {
-        Matrix(vec![vec![0.0f32; x]; y])
+impl<const X: usize, const Y: usize> Matrix<X, Y> {
+    pub fn zeroed() -> Self {
+        Matrix([[0.0f32; X]; Y])
     }
 
-    pub fn ident(x: usize) -> Self {
-        let mut res = Matrix::zeroed(x, x);
-        for i in 0..x {
-            for j in 0..x {
-                res.0[i][j] = if i == j { 1.0 } else { 0.0 };
-            }
-        }
-        res
-    }
-
-    pub fn inverse(&self) -> Self {
+    pub fn inverse(&self) -> Self
+    where [(); X*2]: Sized  {
         assert!(self.0.len() == self.0[0].len());
         let n = self.0.len();
         let mut aug = {
-            let mut r = Matrix::zeroed(n * 2, n);
+            let mut r: Matrix<{X*2}, Y> = Matrix::zeroed();
             for y in 0..n {
                 for x in 0..n {
                     r.0[y][x] = self.0[y][x];
@@ -113,7 +104,7 @@ impl Matrix {
             }
         }
 
-        let mut res = Matrix::zeroed(n, n);
+        let mut res: Matrix<X, Y> = Matrix::zeroed();
         for y in 0..n {
             for x in n..n * 2 {
                 res.0[y][x - n] = aug.0[y][x];
@@ -123,8 +114,8 @@ impl Matrix {
         return res;
     }
 
-    pub fn transpose(&self) -> Self {
-        let mut res = Matrix::zeroed(self.0.len(), self.0[0].len());
+    pub fn transpose(&self) -> Matrix<Y, X> {
+        let mut res = Matrix::zeroed();
         for x in 0..self.0[0].len() {
             for y in 0..self.0.len() {
                 res.0[x][y] = self.0[y][x];
@@ -133,9 +124,10 @@ impl Matrix {
         return res;
     }
 
-    pub fn mul(&self, matrix: &Matrix) -> Self {
+    pub fn mul<const XX: usize, const YY: usize>(&self, matrix: &Matrix<XX, YY>) -> Matrix<XX, Y> {
         assert!(self.0[0].len() == matrix.0.len());
-        let mut res = Matrix::zeroed(matrix.0[0].len(), self.0.len());
+
+        let mut res = Matrix::zeroed();
         // let tm = matrix.transpose(); // transposing doesn't give any speed improvement :/
         // looks like compilers are smart enough for this optimization
         // also probably isn't worse it in case of 3x3 matrices
@@ -185,13 +177,13 @@ mod tests {
 
     #[test]
     fn test_matrix_inv() {
-        let m = Matrix(vec![
-            vec![1.0, 2.0, 1.0, 0.0],
-            vec![0.0, 2.0, 1.0, 3.0],
-            vec![1.0, 2.0, 0.0, 1.0],
-            vec![1.0, 2.0, 0.0, 3.0],
-        ]);
-        println!("{:?}", m.inverse());
+        // let m = Matrix(vec![
+        //     vec![1.0, 2.0, 1.0, 0.0],
+        //     vec![0.0, 2.0, 1.0, 3.0],
+        //     vec![1.0, 2.0, 0.0, 1.0],
+        //     vec![1.0, 2.0, 0.0, 3.0],
+        // ]);
+        // println!("{:?}", m.inverse());
     }
 
     #[test]
@@ -200,14 +192,14 @@ mod tests {
         //     0.0,
         //     get_angle(&(0.0, 0.0, 0.0), &(0.0, 0.0, 0.0), &(0.0, 0.0, 0.0))
         // );
-        let mut m1 = Matrix::zeroed(3, 3);
-        m1.0 = vec![vec![1.0, 1.1, 1.2]];
-        let mut m2 = Matrix::zeroed(3, 3);
-        m2.0 = vec![vec![1.0], vec![2.0], vec![3.0]];
+        // let mut m1 = Matrix::zeroed(3, 3);
+        // m1.0 = vec![vec![1.0, 1.1, 1.2]];
+        // let mut m2 = Matrix::zeroed(3, 3);
+        // m2.0 = vec![vec![1.0], vec![2.0], vec![3.0]];
 
-        // let v = Vec3f(1.0, 2.0, 3.0);
+        // // let v = Vec3f(1.0, 2.0, 3.0);
 
-        println!("{:?}", m1.mul(&m2));
+        // println!("{:?}", m1.mul(&m2));
         // println!("{:?}", m2.mul(v.into()));
         // println!("{:?}", m1.transpose());
     }

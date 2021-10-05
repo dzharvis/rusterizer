@@ -8,7 +8,7 @@ use yew::{html, Component, Html, NodeRef};
 
 use crate::la::{Matrix, Vec3f};
 use crate::tga::Image;
-use crate::wf::Wavefront;
+use crate::model::Wavefront;
 use crate::{get_look_at, look_at, triangle, BasicShader, Shader, ShaderConf};
 
 pub enum Msg {
@@ -48,7 +48,6 @@ impl Model {
         let lookat_i = lookat.inverse().transpose();
         let light_dir: Vec3f = look_at(&lookat, &Vec3f(01.0, -0.0, 0.5).normalize());
 
-        // println!("{:?}", lookat.mul(&lookat_i));
         let model = self.model.as_ref().unwrap();
         let texture = self.texture.as_ref().unwrap();
         let mut shader = BasicShader {
@@ -62,8 +61,8 @@ impl Model {
             out_texture: &mut out_texture,
             norm_texture: &self.normals.as_ref().unwrap(),
             z_buffer: &mut z_buffer,
-            varying_uv: Matrix::zeroed(3, 2),
-            varying_xy: Matrix::zeroed(3, 3),
+            varying_uv: Matrix::zeroed(),
+            varying_xy: Matrix::zeroed(),
         };
 
         for f in 0..model.faces.len() {
@@ -75,8 +74,6 @@ impl Model {
         }
 
         out_texture.apply_gamma(1.5);
-        // out_texture.write_to_tga("african_head.tga").unwrap();
-        // z_buffer.write_to_tga("zbuff.tga").unwrap();
 
         let canvas = self.node_ref.cast::<HtmlCanvasElement>().unwrap();
         let ctx: CanvasRenderingContext2d = canvas

@@ -1,6 +1,6 @@
+#![feature(generic_const_exprs)]
 #[cfg(not(feature = "local"))]
 extern crate yew;
-
 #[cfg(not(feature = "local"))]
 extern crate anyhow;
 
@@ -8,7 +8,7 @@ mod la;
 mod tga;
 #[cfg(not(feature = "local"))]
 mod web;
-mod wf;
+mod model;
 use tga::Color;
 #[cfg(not(feature = "local"))]
 use web::web;
@@ -17,7 +17,7 @@ use std::mem::{self};
 
 use la::Matrix;
 use la::Vec3f;
-use wf::Wavefront;
+use model::Wavefront;
 
 use crate::la::barycentric;
 
@@ -48,16 +48,16 @@ trait Shader {
 struct BasicShader<'a> {
     conf: ShaderConf,
     light_dir: Vec3f,
-    lookat_m: Matrix,
-    lookat_mi: Matrix,
+    lookat_m: Matrix<4, 4>,
+    lookat_mi: Matrix<4, 4>,
     model: &'a Wavefront,
     out_texture: &'a mut tga::Image,
     mod_texture: &'a tga::Image,
     norm_texture: &'a tga::Image,
     z_buffer: &'a mut tga::Image,
 
-    varying_uv: Matrix, // 3x2
-    varying_xy: Matrix, // 3x3
+    varying_uv: Matrix<3, 2>, // 3x2
+    varying_xy: Matrix<3, 3>, // 3x3
     n: Option<Vec3f>,   // 3x3
 }
 
@@ -153,7 +153,7 @@ impl Shader for BasicShader<'_> {
             ((normal.0 as f32 / 255.0) * 2.) - 1.,
         )
         .normalize();
-        let normal_vec: Vec3f = self.lookat_mi.mul(&(nv).embed(4, 0.0)).into();
+        let normal_vec: Vec3f = self.lookat_mi.mul(&(nv).embed::<4>(0.0)).into();
         normal_vec
     } else {
             self.n.as_ref().unwrap().clone()
@@ -191,7 +191,7 @@ fn persp(c: f32, v1: &Vec3f) -> Vec3f {
     )
 }
 
-fn get_look_at(p: &Vec3f) -> Matrix {
+fn get_look_at(p: &Vec3f) -> Matrix<4, 4> {
     let up = Vec3f(0.0, 1.0, 0.0);
     let c = Vec3f(0.0, 0.0, 0.0);
 
@@ -199,26 +199,26 @@ fn get_look_at(p: &Vec3f) -> Matrix {
     let x = up.cross(&z).normalize();
     let y = z.cross(&x).normalize();
 
-    let minv = Matrix(vec![
-        vec![x.0, x.1, x.2, 0.0],
-        vec![y.0, y.1, y.2, 0.0],
-        vec![z.0, z.1, z.2, 0.0],
-        vec![0.0, 0.0, 0.0, 1.0],
+    let minv = Matrix([
+        [x.0, x.1, x.2, 0.0],
+        [y.0, y.1, y.2, 0.0],
+        [z.0, z.1, z.2, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
     ]); //.transpose();
 
-    let tr = Matrix(vec![
-        vec![1.0, 0.0, 0.0, -c.0],
-        vec![0.0, 1.0, 0.0, -c.1],
-        vec![0.0, 0.0, 1.0, -c.2],
-        vec![0.0, 0.0, 1.0, 1.0],
+    let tr = Matrix([
+        [1.0, 0.0, 0.0, -c.0],
+        [0.0, 1.0, 0.0, -c.1],
+        [0.0, 0.0, 1.0, -c.2],
+        [0.0, 0.0, 1.0, 1.0],
     ]);
 
     let mv = minv.mul(&tr); // 4x4
     return mv;
 }
 
-fn look_at(m: &Matrix, v: &Vec3f) -> Vec3f {
-    m.mul(&v.embed(4, 0.0)).into()
+fn look_at(m: &Matrix<4, 4>, v: &Vec3f) -> Vec3f {
+    m.mul(&v.embed::<4>(0.0)).into()
 }
 
 fn to_screen_space(v: &Vec3f, width: i32, height: i32) -> Vec3f {
