@@ -1,9 +1,9 @@
 use anyhow::{Error};
 use wasm_bindgen::{Clamped, JsCast};
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData};
+use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, MouseEvent};
 use yew::format::{Nothing};
 use yew::services::fetch::{FetchTask, Request, Response, Uri};
-use yew::services::FetchService;
+use yew::services::{FetchService};
 use yew::{html, Component, Html, NodeRef};
 
 use crate::la::{Matrix, MatrixI, Vec3f, get_look_at, look_at};
@@ -21,6 +21,9 @@ pub enum Msg {
     Txt,
     Zbuff,
     Norm,
+    RotationStarted(i32, i32),
+    RotationEnded,
+    Noop,
 }
 
 pub struct Model {
@@ -35,10 +38,11 @@ pub struct Model {
     normals: Option<Image>,
     model: Option<model::Model>,
     campos: Vec3f,
+    rotation_start: Option<(i32, i32)>,
 }
 
 impl Model {
-    fn render(&self) {
+    fn render(&mut self) {
         let width: i32 = 512;
         let height: i32 = 512;
         let mut out_texture = Image::new(width, height);
@@ -137,6 +141,7 @@ impl Component for Model {
             normals: None,
             model: None,
             campos: Vec3f(0.5, 0.5, 1.0),
+            rotation_start: None,
         }
     }
 
@@ -228,14 +233,37 @@ impl Component for Model {
                 }
                 true
             }
+            Msg::RotationStarted(x , y) => {
+                self.rotation_start = Some((x, y));
+                true
+            },
+            Msg::Noop => false,
+            Msg::RotationEnded => {
+                self.rotation_start = None;
+                true
+            },
         }
     }
 
     fn view(&self) -> Html {
-        let Vec3f(x, y, z) = self.campos.clone();
+        let Vec3f(x, y, z) = self.campos;
+        let pos = self.rotation_start.clone();
         html! {
             <div style="display: flex;justify-content: center;align-items: center">
-                <canvas ref={self.node_ref.clone()} width="512" height="512" />
+                <canvas onmousedown=self.link.callback(move |e: MouseEvent| {
+                    Msg::RotationStarted(e.client_x(), e.client_y())
+                })
+                onmouseup=self.link.callback(move |e: MouseEvent| {
+                    Msg::RotationEnded
+                })
+                onmousemove=self.link.callback(move |e: MouseEvent| {
+                    pos.map(|(px, py)| {
+                        let dx = px - e.client_x();
+                        let dy = py - e.client_y();
+                        Msg::Upd(Vec3f(x as f32 + (dx as f32/500.0), y as f32 - (dy as f32/500.0), z))
+                    }).unwrap_or(Msg::Noop)
+                })
+                ref={self.node_ref.clone()} width="512" height="512" />
                 <div style="display: flex;align-items: flex-start;flex-direction: column;">
                     { if self.ready() { html! {
                         <>
