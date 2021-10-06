@@ -6,10 +6,10 @@ use yew::services::fetch::{FetchTask, Request, Response, Uri};
 use yew::services::FetchService;
 use yew::{html, Component, Html, NodeRef};
 
-use crate::la::{Matrix, Vec3f};
+use crate::la::{Matrix, MatrixI, Vec3f, get_look_at, look_at};
+use crate::shader::{BasicShader, Shader, ShaderConf, triangle};
 use crate::tga::Image;
-use crate::model::Wavefront;
-use crate::{get_look_at, look_at, triangle, BasicShader, Shader, ShaderConf};
+use crate::model::{self, Wavefront};
 
 pub enum Msg {
     Texture(Vec<u8>),
@@ -31,8 +31,9 @@ pub struct Model {
     link: yew::ComponentLink<Self>,
     task: Vec<Option<FetchTask>>,
     texture: Option<Image>,
-    model: Option<Wavefront>,
+    wavefront: Option<Wavefront>,
     normals: Option<Image>,
+    model: Option<model::Model>,
     campos: Vec3f,
 }
 
@@ -43,29 +44,28 @@ impl Model {
         let mut out_texture = Image::new(width, height);
         let mut z_buffer = Image::new(width, height);
 
+        let c = Vec3f(0.0, 0.0, 0.0);
         let campos = &self.campos;
-        let lookat = get_look_at(&campos);
+        let lookat = get_look_at(&campos, &c);
         let lookat_i = lookat.inverse().transpose();
-        let light_dir: Vec3f = look_at(&lookat, &Vec3f(01.0, -0.0, 0.5).normalize());
+        let light_dir: Vec3f = look_at(&lookat, &Vec3f(1.0, -0.0, 0.5).normalize());
 
         let model = self.model.as_ref().unwrap();
-        let texture = self.texture.as_ref().unwrap();
         let mut shader = BasicShader {
             conf: self.conf.clone(),
-            n: None,
+            normal_face_vec: None,
             light_dir: light_dir.normalize(),
             lookat_m: lookat,
             lookat_mi: lookat_i,
             model,
-            mod_texture: texture,
             out_texture: &mut out_texture,
-            norm_texture: &self.normals.as_ref().unwrap(),
             z_buffer: &mut z_buffer,
             varying_uv: Matrix::zeroed(),
             varying_xy: Matrix::zeroed(),
+            vertices: [Vec3f::zeroed(); 3],
         };
 
-        for f in 0..model.faces.len() {
+        for f in 0..model.num_faces() {
             let mut vertices = [Vec3f::zeroed(), Vec3f::zeroed(), Vec3f::zeroed()];
             for v in 0..3 {
                 vertices[v] = shader.vertex(f, v);
@@ -87,8 +87,12 @@ impl Model {
         ctx.put_image_data(&id, 0.0, 0.0).unwrap();
     }
 
+    fn prepare(&mut self) {
+        self.model = Some(model::Model::new(self.wavefront.take().unwrap(), self.normals.take().unwrap(), self.texture.take().unwrap()));
+    }
+
     fn ready(&self) -> bool {
-        self.texture.is_some() && self.model.is_some() && self.normals.is_some()
+        self.model.is_some() || (self.texture.is_some() && self.wavefront.is_some() && self.normals.is_some())
     }
 
     fn load_binary(&mut self, url: String, dispatch: fn(Vec<u8>) -> Msg) {
@@ -129,8 +133,9 @@ impl Component for Model {
             props,
             node_ref: NodeRef::default(),
             texture: None,
-            model: None,
+            wavefront: None,
             normals: None,
+            model: None,
             campos: Vec3f(0.5, 0.5, 1.0),
         }
     }
@@ -202,6 +207,7 @@ impl Component for Model {
             Msg::Texture(v) => {
                 self.texture = Some(Image::from_raw_vec(v));
                 if self.ready() {
+                    self.prepare();
                     self.render();
                 }
                 true
@@ -209,13 +215,15 @@ impl Component for Model {
             Msg::Normals(v) => {
                 self.normals = Some(Image::from_raw_vec(v));
                 if self.ready() {
+                    self.prepare();
                     self.render();
                 }
                 true
             }
             Msg::Model(v) => {
-                self.model = Some(Wavefront::parse_string(String::from_utf8(v).unwrap()));
+                self.wavefront = Some(Wavefront::parse_string(String::from_utf8(v).unwrap()));
                 if self.ready() {
+                    self.prepare();
                     self.render();
                 }
                 true
