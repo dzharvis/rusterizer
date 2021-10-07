@@ -38,9 +38,9 @@ button {
     border: none;
     color: white;
     padding: 5px 5px;
-    margin: 2px;
+    margin: 1px;
     border-radius: 5px;
-    width: 150px;
+    width: 148px;
 }
 
 button:disabled {
