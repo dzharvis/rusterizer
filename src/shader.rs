@@ -109,14 +109,8 @@ impl Shader for BasicShader<'_> {
             .normalize();
         let light_spec = reflected.2.max(0.0).powf(23.0); // cam on z
 
-        let mut highlight = 0.0f32;
-        highlight += if self.conf.diff_light { light } else { 0.0 };
-
-        highlight += if self.conf.spec_light {
-            light_spec * 0.9
-        } else {
-            0.0
-        };
+        let mut highlight = if self.conf.diff_light { light } else { 0.0f32 };
+        highlight += if self.conf.spec_light { light_spec * 0.9 } else { 0.0 };
 
         self.out_texture.set_pixel(x, y, txt.highlight(highlight));
         self.z_buffer.set_pixel(x, y, tga::Color(z, z, z))

@@ -6,7 +6,7 @@ use yew::services::fetch::{FetchTask, Request, Response, Uri};
 use yew::services::{ConsoleService, FetchService};
 use yew::{html, Component, Html, NodeRef};
 
-use crate::la::{Matrix, MatrixI, Vec3f, get_look_at, look_at};
+use crate::la::{Matrix, MatrixI, Vec3f, get_look_at, look_at, persp};
 use crate::shader::{BasicShader, Shader, ShaderConf, triangle};
 use crate::tga::Image;
 use crate::model::{self, Wavefront};
@@ -16,7 +16,7 @@ pub enum Msg {
     Model(Vec<u8>),
     Normals(Vec<u8>),
     Upd(Vec3f),
-    UpdC(Vec3f),
+    UpdC(Vec3f, Vec3f),
     Diff,
     Spec,
     Txt,
@@ -54,9 +54,9 @@ impl Model {
         let mut z_buffer = Image::new(width, height);
 
         let campos = &self.campos;
-        let lookat = get_look_at(&campos, &self.camplace);
+        let lookat = get_look_at(&campos.add(&self.camplace), &self.camplace);
         let lookat_i = lookat.inverse().transpose();
-        let light_dir: Vec3f = look_at(&lookat, &Vec3f(1.0, -0.0, 0.5).normalize());
+        let light_dir: Vec3f = persp(5.0, &look_at(&lookat, &Vec3f(1.0, -0.0, 0.5)));
 
         let model = self.model.as_ref().unwrap();
         let mut shader = BasicShader {
@@ -256,9 +256,13 @@ impl Component for Model {
                 self.move_start = None;
                 true
             },
-            Msg::UpdC(c) => {
-                self.camplace = c;
-                self.campos = c.add(&self.campos);
+            Msg::UpdC(Vec3f(dx, dy, _), old_place) => {
+                ConsoleService::log(format!("{:?}, {:?}", dx, dy).as_str());
+                let camvec = Vec3f(self.campos.0, 0.0, self.campos.2).normalize().mulf(dy/500.0);
+                let perp: Vec3f = Vec3f(0.0, 1.0, 0.0).cross(&self.campos).normalize().mulf(dx/500.0);
+
+                self.camplace = old_place.add(&perp).add(&camvec);
+
                 if self.ready() {
                     self.render();
                 }
@@ -281,7 +285,6 @@ impl Component for Model {
                 if e.button() == 0 {
                     Msg::RotationStarted(e.client_x(), e.client_y())
                 } else {
-                    ConsoleService::log("move started");
                     Msg::MoveStarted(e.client_x(), e.client_y())
                 }
             })
@@ -294,18 +297,16 @@ impl Component for Model {
             })
             onmousemove=self.link.callback(move |e: MouseEvent| {
                 if pos.is_some(){
-                    ConsoleService::log("move moved");
                     pos.map(|(px, py, campos)| {
                         let dx = px - e.client_x();
                         let dy = py - e.client_y();
                         Msg::Upd(campos.rotate(dy as f32/100.0, dx as f32/100.0))
                     }).unwrap_or(Msg::Noop)
                 } else {
-                    
-                    place.map(|(px, py, place)| {
+                    place.map(|(px, py, old_place)| {
                         let dx = px - e.client_x();
                         let dy = py - e.client_y();
-                        Msg::UpdC(place.add(&Vec3f(dx as f32/100.0, 0.0, dy as f32/100.0*-1.0)))
+                        Msg::UpdC(Vec3f(dx as f32, dy as f32, 0.0), old_place)
                     }).unwrap_or(Msg::Noop)
                 }
                 

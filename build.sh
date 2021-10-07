@@ -1,3 +1,5 @@
+#!/bin/bash
+
 cat > index.html <<- EOM
 <!DOCTYPE html>
 <html>

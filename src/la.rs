@@ -25,6 +25,7 @@ impl Vec3f {
 
     pub fn normalize(&self) -> Self {
         let mag = (self.0 * self.0 + self.1 * self.1 + self.2 * self.2).sqrt();
+        let mag = if mag == 0.0 { f32::MIN } else { mag };
         Vec3f(self.0 / mag, self.1 / mag, self.2 / mag)
     }
 
