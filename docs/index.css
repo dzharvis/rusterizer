@@ -1,0 +1,47 @@
+body {
+    margin: 0
+}
+
+.rusterizer-window {
+    display: flex;
+    justify-content: center;
+    background-color: black;
+    align-items: center; 
+    width: 100vw; height: 100vh;
+}
+
+.menu {
+    display: flex;
+    align-items: flex-start;
+    flex-direction: column;
+    position: absolute;
+    right: 10vw;
+    top: 10vh;
+    color: white;
+    font-family: monospace;
+}
+
+.button-row {
+    width: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+button {
+    font-family: monospace;
+    background-color: #004346;
+    border: none;
+    color: white;
+    padding: 5px 5px;
+    margin: 2px;
+    border-radius: 5px;
+}
+
+button:disabled {
+    background-color: #012a2c
+}
+
+button:hover:enabled {
+    background-color: #014b4e;
+}

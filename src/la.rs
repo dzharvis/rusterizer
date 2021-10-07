@@ -43,6 +43,22 @@ impl Vec3f {
     pub fn mulf(&self, v: f32) -> Vec3f {
         Vec3f(self.0 * v, self.1 * v, self.2 * v)
     }
+
+    pub fn rotate(&self, x: f32, y: f32) -> Vec3f {
+        let xm: Matrix<3, 3> = [
+            [1.0, 0.0, 0.0],
+            [0.0, x.cos(), -x.sin()],
+            [0.0, x.sin(), x.cos()],
+        ];
+
+        let ym: Matrix<3, 3> = [
+            [y.cos(), 0.0, y.sin()],
+            [0.0, 1.0, 0.0],
+            [-y.sin(), 0.0, y.cos()],
+        ];
+
+        ym.mul(&xm.mul(&self.into())).into()
+    }
 }
 
 impl Into<Matrix<1, 3>> for &Vec3f {
@@ -167,9 +183,9 @@ pub fn barycentric(a: &Vec3f, b: &Vec3f, c: &Vec3f, p: (f32, f32)) -> Vec3f {
 
 pub fn persp(c: f32, v1: &Vec3f) -> Vec3f {
     Vec3f(
-        v1.0 / (1.0 - v1.2 / c),
-        v1.1 / (1.0 - v1.2 / c),
-        v1.2 / (1.0 - v1.2 / c),
+        v1.0 / (1.08 - v1.2 / c),
+        v1.1 / (1.08 - v1.2 / c),
+        v1.2 / (1.08 - v1.2 / c),
     )
 }
 

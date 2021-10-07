@@ -3,7 +3,7 @@ use wasm_bindgen::{Clamped, JsCast};
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, MouseEvent};
 use yew::format::{Nothing};
 use yew::services::fetch::{FetchTask, Request, Response, Uri};
-use yew::services::{FetchService};
+use yew::services::{ConsoleService, FetchService};
 use yew::{html, Component, Html, NodeRef};
 
 use crate::la::{Matrix, MatrixI, Vec3f, get_look_at, look_at};
@@ -16,6 +16,7 @@ pub enum Msg {
     Model(Vec<u8>),
     Normals(Vec<u8>),
     Upd(Vec3f),
+    UpdC(Vec3f),
     Diff,
     Spec,
     Txt,
@@ -23,6 +24,8 @@ pub enum Msg {
     Norm,
     RotationStarted(i32, i32),
     RotationEnded,
+    MoveStarted(i32, i32),
+    MoveEnded,
     Noop,
 }
 
@@ -38,7 +41,9 @@ pub struct Model {
     normals: Option<Image>,
     model: Option<model::Model>,
     campos: Vec3f,
-    rotation_start: Option<(i32, i32)>,
+    camplace: Vec3f,
+    rotation_start: Option<(i32, i32, Vec3f)>,
+    move_start: Option<(i32, i32, Vec3f)>
 }
 
 impl Model {
@@ -48,9 +53,8 @@ impl Model {
         let mut out_texture = Image::new(width, height);
         let mut z_buffer = Image::new(width, height);
 
-        let c = Vec3f(0.0, 0.0, 0.0);
         let campos = &self.campos;
-        let lookat = get_look_at(&campos, &c);
+        let lookat = get_look_at(&campos, &self.camplace);
         let lookat_i = lookat.inverse().transpose();
         let light_dir: Vec3f = look_at(&lookat, &Vec3f(1.0, -0.0, 0.5).normalize());
 
@@ -141,7 +145,9 @@ impl Component for Model {
             normals: None,
             model: None,
             campos: Vec3f(0.5, 0.5, 1.0),
+            camplace: Vec3f(0.0, 0.0, 0.0),
             rotation_start: None,
+            move_start: None
         }
     }
 
@@ -234,12 +240,28 @@ impl Component for Model {
                 true
             }
             Msg::RotationStarted(x , y) => {
-                self.rotation_start = Some((x, y));
+                self.rotation_start = Some((x, y, self.campos));
                 true
             },
             Msg::Noop => false,
             Msg::RotationEnded => {
                 self.rotation_start = None;
+                true
+            },
+            Msg::MoveStarted(x, y) => {
+                self.move_start = Some((x, y, self.camplace));
+                true
+            },
+            Msg::MoveEnded => {
+                self.move_start = None;
+                true
+            },
+            Msg::UpdC(c) => {
+                self.camplace = c;
+                self.campos = c.add(&self.campos);
+                if self.ready() {
+                    self.render();
+                }
                 true
             },
         }
@@ -248,36 +270,62 @@ impl Component for Model {
     fn view(&self) -> Html {
         let Vec3f(x, y, z) = self.campos;
         let pos = self.rotation_start.clone();
+        let place = self.move_start.clone();
         html! {
-            <div style="display: flex;justify-content: center;align-items: center">
-                <canvas onmousedown=self.link.callback(move |e: MouseEvent| {
+            <div class="rusterizer-window"
+            oncontextmenu=self.link.callback(move |e: MouseEvent| {
+                e.prevent_default();
+                Msg::Noop
+            })
+            onmousedown=self.link.callback(move |e: MouseEvent| {
+                if e.button() == 0 {
                     Msg::RotationStarted(e.client_x(), e.client_y())
-                })
-                onmouseup=self.link.callback(move |e: MouseEvent| {
+                } else {
+                    ConsoleService::log("move started");
+                    Msg::MoveStarted(e.client_x(), e.client_y())
+                }
+            })
+            onmouseup=self.link.callback(move |e: MouseEvent| {
+                if e.button() == 0 {
                     Msg::RotationEnded
-                })
-                onmousemove=self.link.callback(move |e: MouseEvent| {
-                    pos.map(|(px, py)| {
+                } else {
+                    Msg::MoveEnded
+                }
+            })
+            onmousemove=self.link.callback(move |e: MouseEvent| {
+                if pos.is_some(){
+                    ConsoleService::log("move moved");
+                    pos.map(|(px, py, campos)| {
                         let dx = px - e.client_x();
                         let dy = py - e.client_y();
-                        Msg::Upd(Vec3f(x as f32 + (dx as f32/500.0), y as f32 - (dy as f32/500.0), z))
+                        Msg::Upd(campos.rotate(dy as f32/100.0, dx as f32/100.0))
                     }).unwrap_or(Msg::Noop)
-                })
+                } else {
+                    
+                    place.map(|(px, py, place)| {
+                        let dx = px - e.client_x();
+                        let dy = py - e.client_y();
+                        Msg::UpdC(place.add(&Vec3f(dx as f32/100.0, 0.0, dy as f32/100.0*-1.0)))
+                    }).unwrap_or(Msg::Noop)
+                }
+                
+            })>
+                <canvas 
                 ref={self.node_ref.clone()} width="512" height="512" />
-                <div style="display: flex;align-items: flex-start;flex-direction: column;">
+                <div class="menu">
                     { if self.ready() { html! {
                         <>
-                            <div style="display: flex;align-items: flex-start">
+                            <div class="button-row">
                                 <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x+0.1, y, z)))>{ "+" }</button>
                                 { "x: " }{ format!("{:.2}", x) }
                                 <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x-0.1, y, z)))>{ "-" }</button>
                             </div>
-                            <div style="display: flex;align-items: flex-start">
+                            <div class="button-row">
                                 <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x, y+0.1, z)))>{ "+" }</button>
                                 { "y: " }{ format!("{:.2}", y) }
                                 <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x, y-0.1, z)))>{ "-" }</button>
                             </div>
-                            <div style="display: flex;align-items: flex-start">
+                            <div class="button-row">
                                 <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x, y, z+0.1)))>{ "+" }</button>
                                 { "z: " }{ format!("{:.2}", z) }
                                 <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x, y, z-0.1)))>{ "-" }</button>
