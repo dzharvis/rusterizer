@@ -7,7 +7,7 @@ use yew::services::{ConsoleService, FetchService};
 use yew::{html, Component, Html, NodeRef};
 
 use crate::la::{Matrix, MatrixI, Vec3f, get_look_at, look_at, persp};
-use crate::shader::{BasicShader, Shader, ShaderConf, triangle};
+use crate::shader::{BasicShader, LightShader, Shader, ShaderConf, triangle};
 use crate::tga::Image;
 use crate::model::{self, Wavefront};
 
@@ -22,6 +22,7 @@ pub enum Msg {
     Txt,
     Zbuff,
     Norm,
+    Occl,
     RotationStarted(i32, i32),
     RotationEnded,
     MoveStarted(i32, i32),
@@ -52,6 +53,7 @@ impl Model {
         let height: i32 = 512;
         let mut out_texture = Image::new(width, height);
         let mut z_buffer = Image::new(width, height);
+        let mut light_texture = Image::new(width, height);
 
         let campos = &self.campos;
         let lookat = get_look_at(&campos.add(&self.camplace), &self.camplace);
@@ -71,6 +73,7 @@ impl Model {
             varying_uv: Matrix::zeroed(),
             varying_xy: Matrix::zeroed(),
             vertices: [Vec3f::zeroed(); 3],
+            light_texture: &mut light_texture,
         };
 
         for f in 0..model.num_faces() {
@@ -80,6 +83,40 @@ impl Model {
             }
             triangle(&vertices[0], &vertices[1], &vertices[2], &mut shader);
         }
+
+        let light_model = model::Model {
+            model: Wavefront { 
+                vertices: vec![Vec3f(-1.0, -1.0, 0.0), Vec3f(1.0, -1.0, 0.0), Vec3f(1.0, 1.0, 0.0), Vec3f(-1.0, 1.0, 0.0), ], 
+                texture_coord: vec![[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]], 
+                normals: Vec::new(), 
+                faces: vec![([3, 0, 1], [3, 0, 1]), ([3, 1, 2], [3, 1, 2])] 
+            },
+            normal_map: Image::new(0, 0),
+            texture: Image::new(0, 0),
+        };
+    
+        if self.conf.occlusion {
+            let mut occl_texture = Image::new(width, height);
+            let mut light_shader = LightShader {
+                conf: ShaderConf::new(),
+                model: &light_model,
+                out_texture: &mut out_texture,
+                light_texture: &mut light_texture,
+                z_buffer: &mut z_buffer,
+                varying_uv: Matrix::zeroed(),
+                varying_xy: Matrix::zeroed(),
+                occl_texture: &mut occl_texture,
+            };
+        
+            for f in 0..light_model.num_faces() {
+                let mut vertices = [Vec3f::zeroed(), Vec3f::zeroed(), Vec3f::zeroed()];
+                for v in 0..3 {
+                    vertices[v] = light_shader.vertex(f, v);
+                }
+                triangle(&vertices[0], &vertices[1], &vertices[2], &mut light_shader);
+            }
+        }
+        
 
         out_texture.apply_gamma(1.5);
 
@@ -163,6 +200,16 @@ impl Component for Model {
         match msg {
             Msg::Zbuff => {
                 self.zbuff = !self.zbuff;
+                if self.ready() {
+                    self.render();
+                }
+                true
+            }
+            Msg::Occl => {
+                self.conf = ShaderConf {
+                    occlusion: !self.conf.occlusion,
+                    ..self.conf
+                };
                 if self.ready() {
                     self.render();
                 }
@@ -335,6 +382,7 @@ impl Component for Model {
                             <button disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Spec)>{ "Specular light" }</button>
                             <button disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Txt)>{ "Texture" }</button>
                             <button disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Norm)>{ "Normal map" }</button>
+                            <button disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Occl)>{ "Ambient occlusion" }</button>
                             <button onclick=self.link.callback(move |_| Msg::Zbuff)>{ "Z Buffer" }</button>
                         </>
                     } } else { html! { "Loading model.." } } }

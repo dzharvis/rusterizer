@@ -3,9 +3,9 @@ use std::fs;
 use crate::{la::Vec3f, tga::{Color, Image}};
 
 pub struct Model {
-    model: Wavefront,
-    normal_map: Image,
-    texture: Image,
+    pub model: Wavefront,
+    pub normal_map: Image,
+    pub texture: Image,
 }
 
 impl Model {

@@ -55,6 +55,12 @@ impl Image {
         self.data.get((x + y * self.width) as usize).unwrap_or(&Color(0,0,0)).clone()
     }
 
+    pub fn pixel_atf(&self, u: f32, v: f32) -> Color {
+        let x = (((u + 1.0)/2.0) * self.width as f32) as i32;
+        let y = (((v + 1.0)/2.0) * self.height as f32) as i32;
+        self.data.get((x + y * self.width) as usize).unwrap_or(&Color(0,0,0)).clone()
+    }
+
     pub fn apply_gamma(self: &mut Image, gamma: f32) {
         for c in self.data.iter_mut() {
             let Color(r, g, b) = *c;
