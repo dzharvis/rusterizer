@@ -43,10 +43,14 @@ button {
     width: 148px;
 }
 
-button:disabled {
+button:disabled, .off {
     background-color: #012a2c
 }
 
 button:hover:enabled {
     background-color: #014b4e;
+}
+
+button.off:hover:enabled {
+    background-color: #013538;
 }

@@ -233,7 +233,7 @@ impl Component for Model {
                 if self.ready() {
                     self.render();
                 }
-                false
+                true
             }
             Msg::Spec => {
                 self.conf = ShaderConf {
@@ -243,7 +243,7 @@ impl Component for Model {
                 if self.ready() {
                     self.render();
                 }
-                false
+                true
             }
             Msg::Txt => {
                 self.conf = ShaderConf {
@@ -253,7 +253,7 @@ impl Component for Model {
                 if self.ready() {
                     self.render();
                 }
-                false
+                true
             }
             Msg::Upd(v) => {
                 self.campos = v;
@@ -378,11 +378,11 @@ impl Component for Model {
                                 { "z: " }{ format!("{:.2}", z) }
                                 <button onclick=self.link.callback(move |_| Msg::Upd(Vec3f(x, y, z-0.1)))>{ "-" }</button>
                             </div>
-                            <button disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Diff)>{ "Diffuse light" }</button>
-                            <button disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Spec)>{ "Specular light" }</button>
-                            <button disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Txt)>{ "Texture" }</button>
-                            <button disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Norm)>{ "Normal map" }</button>
-                            <button disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Occl)>{ "Ambient occlusion" }</button>
+                            <button class=if self.conf.diff_light { "" } else { "off" } disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Diff)>{ "Diffuse light" }</button>
+                            <button class=if self.conf.spec_light { "" } else { "off" } disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Spec)>{ "Specular light" }</button>
+                            <button class=if self.conf.texture { "" } else { "off" } disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Txt)>{ "Texture" }</button>
+                            <button class=if self.conf.normals { "" } else { "off" } disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Norm)>{ "Normal map" }</button>
+                            <button class=if self.conf.occlusion { "" } else { "off" } disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Occl)>{ "Ambient occlusion" }</button>
                             <button onclick=self.link.callback(move |_| Msg::Zbuff)>{ "Z Buffer" }</button>
                         </>
                     } } else { html! { "Loading model.." } } }
