@@ -83,12 +83,15 @@ impl Shader for LightShader<'_> {
 
         total = total / 2.0;
 
-        self.occl_texture.set_pixel(x, y, Color((total * 255.0) as u8, (total * 255.0) as u8, (total * 255.0) as u8,));
+        if self.occl_texture.pixel_at(x, y).0 == 0 {
+            self.occl_texture.set_pixel(x, y, Color((total * 254.0) as u8 + 1, (total * 254.0) as u8 + 1, (total * 254.0) as u8 + 1,));
+            let texture = self.out_texture.pixel_at(x, y);
+            let mut light = (2.0 * self.light_texture.pixel_at(x, y).0 as f32 / 255.0)*2.0 - 2.0;
+            light -= total;
+            self.out_texture.set_pixel(x, y, texture.highlight(light)) ;
+        }
 
-        let texture = self.out_texture.pixel_at(x, y);
-        let mut light = (2.0 * self.light_texture.pixel_at(x, y).0 as f32 / 255.0)*2.0 - 2.0;
-        light -= total;
-        self.out_texture.set_pixel(x, y, texture.highlight(light)) ;
+        
     }
 }
 
