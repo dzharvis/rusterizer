@@ -34,9 +34,13 @@ EOM
 rm -rf ../docs/*
 
 mkdir ../docs/african_head
+mkdir ../docs/diablo
 cp ../res/african_head/model.obj ../docs/african_head/
 cp ../res/african_head/normals.tga ../docs/african_head/
 cp ../res/african_head/texture.tga ../docs/african_head/
+cp ../res/diablo/model.obj ../docs/diablo/
+cp ../res/diablo/normals.tga ../docs/diablo/
+cp ../res/diablo/texture.tga ../docs/diablo/
 
 cp ../static/index.css ../docs/
 

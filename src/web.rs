@@ -17,6 +17,7 @@ pub enum Msg {
     Normals(Vec<u8>),
     Upd(Vec3f),
     UpdC(Vec3f, Vec3f),
+    Load(ModelType),
     Diff,
     Spec,
     Txt,
@@ -30,6 +31,11 @@ pub enum Msg {
     Noop,
 }
 
+pub enum ModelType {
+    DIABLO,
+    AFRICAN,
+}
+
 pub struct Model {
     conf: ShaderConf,
     zbuff: bool,
@@ -41,6 +47,7 @@ pub struct Model {
     wavefront: Option<Wavefront>,
     normals: Option<Image>,
     model: Option<model::Model>,
+    model_type: ModelType,
     campos: Vec3f,
     camplace: Vec3f,
     rotation_start: Option<(i32, i32, Vec3f)>,
@@ -190,6 +197,7 @@ impl Component for Model {
             wavefront: None,
             normals: None,
             model: None,
+            model_type: ModelType::AFRICAN,
             campos: Vec3f(0.5, 0.5, 1.0),
             camplace: Vec3f(0.0, 0.0, 0.0),
             rotation_start: None,
@@ -329,6 +337,47 @@ impl Component for Model {
                 }
                 true
             }
+            Msg::Load(mt) => {
+                match mt {
+                    ModelType::AFRICAN => {
+                        if let ModelType::AFRICAN = self.model_type {
+                        } else {
+                            self.model = None;
+                            self.texture = None;
+                            self.normals = None;
+                            self.wavefront = None;
+                            self.model_type = ModelType::AFRICAN;
+                            self.load_binary("./african_head/texture.tga".to_owned(), |v| {
+                                Msg::Texture(v)
+                            });
+                            self.load_binary("./african_head/normals.tga".to_owned(), |v| {
+                                Msg::Normals(v)
+                            });
+                            self.load_binary("./african_head/model.obj".to_owned(), |v| {
+                                Msg::Model(v)
+                            });
+                        }
+                    }
+                    ModelType::DIABLO => {
+                        if let ModelType::DIABLO = self.model_type {
+                        } else {
+                            self.model = None;
+                            self.texture = None;
+                            self.normals = None;
+                            self.wavefront = None;
+                            self.model_type = ModelType::DIABLO;
+                            self.load_binary("./diablo/texture.tga".to_owned(), |v| {
+                                Msg::Texture(v)
+                            });
+                            self.load_binary("./diablo/normals.tga".to_owned(), |v| {
+                                Msg::Normals(v)
+                            });
+                            self.load_binary("./diablo/model.obj".to_owned(), |v| Msg::Model(v));
+                        }
+                    }
+                }
+                false
+            }
         }
     }
 
@@ -398,6 +447,9 @@ impl Component for Model {
                             <button class=if self.conf.normals { "" } else { "off" } disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Norm)>{ "Normal map" }</button>
                             <button class=if self.conf.occlusion { "" } else { "off" } disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Occl)>{ "Ambient occlusion" }</button>
                             <button onclick=self.link.callback(move |_| Msg::Zbuff)>{ "Z Buffer" }</button>
+                            <div style="height: 100px"></div>
+                            <button class=if let ModelType::AFRICAN=self.model_type { "off" } else { "" } onclick=self.link.callback(move |_| Msg::Load(ModelType::AFRICAN))>{ "African head" }</button>
+                            <button class=if let ModelType::DIABLO=self.model_type { "off" } else { "" } onclick=self.link.callback(move |_| Msg::Load(ModelType::DIABLO))>{ "Diablo" }</button>
                         </>
                     } } else { html! { "Loading model.." } } }
                 </div>
