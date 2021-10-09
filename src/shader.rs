@@ -1,6 +1,10 @@
 use std::mem;
 
-use crate::{la::{Matrix, MatrixI, Vec3f, barycentric, look_at, persp, to_screen_space}, model::Model, tga::{self, Color}};
+use crate::{
+    la::{barycentric, look_at, persp, to_screen_space, Matrix, MatrixI, Vec3f},
+    model::Model,
+    tga::{self, Color},
+};
 
 #[derive(Debug, Clone)]
 pub struct ShaderConf {
@@ -65,12 +69,12 @@ impl Shader for LightShader<'_> {
         let x = x.round() as i32;
         let y = y.round() as i32;
         let z = z.round();
-        
+
         let current_z = self.z_buffer.pixel_at(x, y).0 as f32 / 255.0;
         // let [[u],[v]] = self.varying_uv.mul(&bar_mtrx);
         let mut total = 0.0;
-        for yy in (y-5).max(0)..(y+5).min(self.out_texture.height) {
-            for xx in (x-5).max(0)..(x+5).min(self.out_texture.width) {
+        for yy in (y - 5).max(0)..(y + 5).min(self.out_texture.height) {
+            for xx in (x - 5).max(0)..(x + 5).min(self.out_texture.width) {
                 let surr_z = self.z_buffer.pixel_at(xx, yy).0 as f32 / 255.0;
                 if current_z <= 0.01 {
                     continue;
@@ -84,14 +88,20 @@ impl Shader for LightShader<'_> {
         total = total / 2.0;
 
         if self.occl_texture.pixel_at(x, y).0 == 0 {
-            self.occl_texture.set_pixel(x, y, Color((total * 254.0) as u8 + 1, (total * 254.0) as u8 + 1, (total * 254.0) as u8 + 1,));
+            self.occl_texture.set_pixel(
+                x,
+                y,
+                Color(
+                    (total * 254.0) as u8 + 1,
+                    (total * 254.0) as u8 + 1,
+                    (total * 254.0) as u8 + 1,
+                ),
+            );
             let texture = self.out_texture.pixel_at(x, y);
-            let mut light = (2.0 * self.light_texture.pixel_at(x, y).0 as f32 / 255.0)*2.0 - 2.0;
+            let mut light = (2.0 * self.light_texture.pixel_at(x, y).0 as f32 / 255.0) * 2.0 - 2.0;
             light -= total;
-            self.out_texture.set_pixel(x, y, texture.highlight(light)) ;
+            self.out_texture.set_pixel(x, y, texture.highlight(light));
         }
-
-        
     }
 }
 
@@ -132,8 +142,10 @@ impl Shader for BasicShader<'_> {
         // todo refactor
         if vertex == 2 {
             self.normal_face_vec = Some(
-               self.vertices[1].sub(&self.vertices[0])
-                .cross(&self.vertices[2].sub(&self.vertices[1])).normalize(),
+                self.vertices[1]
+                    .sub(&self.vertices[0])
+                    .cross(&self.vertices[2].sub(&self.vertices[1]))
+                    .normalize(),
             );
         }
 
@@ -158,7 +170,7 @@ impl Shader for BasicShader<'_> {
             return;
         }
 
-        let [[u],[v]] = self.varying_uv.mul(&bar_mtrx);
+        let [[u], [v]] = self.varying_uv.mul(&bar_mtrx);
 
         let txt = if self.conf.texture {
             self.model.texture(u, v)
@@ -166,7 +178,9 @@ impl Shader for BasicShader<'_> {
             Color(150, 150, 150)
         };
         let normal_vec = if self.conf.normals {
-            self.lookat_mi.mul(&(self.model.normal(u, v)).embed::<4>(0.0)).into()
+            self.lookat_mi
+                .mul(&(self.model.normal(u, v)).embed::<4>(0.0))
+                .into()
         } else {
             *self.normal_face_vec.as_ref().unwrap()
         };
@@ -180,12 +194,24 @@ impl Shader for BasicShader<'_> {
         let light_spec = reflected.2.powf(23.0); // cam on z
 
         let mut highlight = if self.conf.diff_light { light } else { 0.0f32 };
-        highlight += if self.conf.spec_light { light_spec * 0.9 } else { 0.0 };
+        highlight += if self.conf.spec_light {
+            light_spec * 0.9
+        } else {
+            0.0
+        };
 
         let hc = (((highlight + 2.0) / 2.0) * 255.0 / 2.0).round() as u8;
         self.light_texture.set_pixel(x, y, Color(hc, hc, hc));
 
-        self.out_texture.set_pixel(x, y, if self.conf.occlusion {txt} else {txt.highlight(highlight)});
+        self.out_texture.set_pixel(
+            x,
+            y,
+            if self.conf.occlusion {
+                txt
+            } else {
+                txt.highlight(highlight)
+            },
+        );
         self.z_buffer.set_pixel(x, y, tga::Color(z, z, z))
     }
 }

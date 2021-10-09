@@ -1,5 +1,5 @@
-use std::io;
 use std::fs::File;
+use std::io;
 use std::io::BufReader;
 use std::io::Read;
 use std::io::Write;
@@ -7,21 +7,21 @@ use std::mem;
 use std::slice;
 
 #[derive(Clone, Debug, Copy)]
-pub struct Color(pub u8,pub u8,pub u8);
+pub struct Color(pub u8, pub u8, pub u8);
 
 impl Color {
     pub fn highlight(self, p: f32) -> Self {
         let Color(r, g, b) = self;
         // Color((r as f32 *p).min(255.0) as u8, (g as f32 *p).min(255.0) as u8, (b  as f32 * p).min(255.0) as u8,)
-        let fr = ((r as f32) / 255.0).powf(1.0 - p/2.3);
-        let fg = ((g as f32) / 255.0).powf(1.0 - p/2.3);
-        let fb = ((b as f32) / 255.0).powf(1.0 - p/2.3);
+        let fr = ((r as f32) / 255.0).powf(1.0 - p / 2.3);
+        let fg = ((g as f32) / 255.0).powf(1.0 - p / 2.3);
+        let fb = ((b as f32) / 255.0).powf(1.0 - p / 2.3);
         Color((fr * 255.0) as u8, (fg * 255.0) as u8, (fb * 255.0) as u8)
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct ColorA(pub u8,pub u8,pub u8,pub u8);
+pub struct ColorA(pub u8, pub u8, pub u8, pub u8);
 
 pub struct Image {
     pub width: i32,
@@ -41,7 +41,7 @@ unsafe fn slice_to_u8_slice<T>(s: &[T]) -> &[u8] {
 
 impl Image {
     pub fn new(width: i32, height: i32) -> Image {
-        let v = vec![Color(0,0,0);(width*height) as usize];
+        let v = vec![Color(0, 0, 0); (width * height) as usize];
         let result = Image {
             width: width,
             height: height,
@@ -52,13 +52,19 @@ impl Image {
     }
 
     pub fn pixel_at(&self, x: i32, y: i32) -> Color {
-        self.data.get((x + y * self.width) as usize).unwrap_or(&Color(0,0,0)).clone()
+        self.data
+            .get((x + y * self.width) as usize)
+            .unwrap_or(&Color(0, 0, 0))
+            .clone()
     }
 
     pub fn pixel_atf(&self, u: f32, v: f32) -> Color {
-        let x = (((u + 1.0)/2.0) * self.width as f32) as i32;
-        let y = (((v + 1.0)/2.0) * self.height as f32) as i32;
-        self.data.get((x + y * self.width) as usize).unwrap_or(&Color(0,0,0)).clone()
+        let x = (((u + 1.0) / 2.0) * self.width as f32) as i32;
+        let y = (((v + 1.0) / 2.0) * self.height as f32) as i32;
+        self.data
+            .get((x + y * self.width) as usize)
+            .unwrap_or(&Color(0, 0, 0))
+            .clone()
     }
 
     pub fn apply_gamma(self: &mut Image, gamma: f32) {
@@ -80,10 +86,11 @@ impl Image {
     pub fn get_raw_bytes(&self) -> Vec<u8> {
         let mut res: Vec<u8> = Vec::new();
 
-        let mut flipped: Vec<Color> = vec![Color(0, 0, 0,); (self.width*self.height) as usize];
+        let mut flipped: Vec<Color> = vec![Color(0, 0, 0,); (self.width * self.height) as usize];
         for y in 0..self.height {
             for x in 0..self.width {
-                flipped[(x + ((self.height - 1) - y)*self.width) as usize] = self.data[(x + y*self.width) as usize].clone()
+                flipped[(x + ((self.height - 1) - y) * self.width) as usize] =
+                    self.data[(x + y * self.width) as usize].clone()
             }
         }
 
@@ -117,33 +124,34 @@ impl Image {
         let mut header: Header = unsafe { mem::zeroed() };
         let header_size = mem::size_of::<Header>();
         unsafe {
-            let header_slice = slice::from_raw_parts_mut(&mut header as *mut _ as *mut u8, header_size);
+            let header_slice =
+                slice::from_raw_parts_mut(&mut header as *mut _ as *mut u8, header_size);
             let mut r = BufReader::new(&v[..]);
             r.read_exact(header_slice).unwrap();
-            
-            let pixels = vec![ColorA(0,0,0,0); header.width as usize * header.height as usize];
-            let pixels_size = mem::size_of::<ColorA>()*pixels.len();
+
+            let pixels = vec![ColorA(0, 0, 0, 0); header.width as usize * header.height as usize];
+            let pixels_size = mem::size_of::<ColorA>() * pixels.len();
             let data_ptr: *mut u8 = mem::transmute(&pixels[..][0]);
             let pixels_slice = slice::from_raw_parts_mut(data_ptr, pixels_size);
             r.read_exact(pixels_slice).unwrap();
 
             let data_correct = {
-                let mut v = vec![Color(0,0,0); pixels.len()];
+                let mut v = vec![Color(0, 0, 0); pixels.len()];
                 for y in 0..header.height {
                     for x in 0..header.width {
                         let p = &pixels[y as usize * header.width as usize + x as usize];
-                        v[((header.height - 1) - y) as usize * header.width as usize + x as usize] = Color(p.0, p.1, p.2);
+                        v[((header.height - 1) - y) as usize * header.width as usize
+                            + x as usize] = Color(p.0, p.1, p.2);
                     }
                 }
                 v
             };
-            
+
             return Image {
                 width: header.width as i32,
                 height: header.height as i32,
-                data: data_correct
-            }
-
+                data: data_correct,
+            };
         }
     }
 
@@ -168,33 +176,34 @@ impl Image {
         let mut header: Header = unsafe { mem::zeroed() };
         let header_size = mem::size_of::<Header>();
         unsafe {
-            let header_slice = slice::from_raw_parts_mut(&mut header as *mut _ as *mut u8, header_size);
+            let header_slice =
+                slice::from_raw_parts_mut(&mut header as *mut _ as *mut u8, header_size);
             let mut f = File::open(f).unwrap();
             f.read_exact(header_slice).unwrap();
-            
-            let pixels = vec![ColorA(0,0,0,0); header.width as usize * header.height as usize];
-            let pixels_size = mem::size_of::<ColorA>()*pixels.len();
+
+            let pixels = vec![ColorA(0, 0, 0, 0); header.width as usize * header.height as usize];
+            let pixels_size = mem::size_of::<ColorA>() * pixels.len();
             let data_ptr: *mut u8 = mem::transmute(&pixels[..][0]);
             let pixels_slice = slice::from_raw_parts_mut(data_ptr, pixels_size);
             f.read_exact(pixels_slice).unwrap();
 
             let data_correct = {
-                let mut v = vec![Color(0,0,0); pixels.len()];
+                let mut v = vec![Color(0, 0, 0); pixels.len()];
                 for y in 0..header.height {
                     for x in 0..header.width {
                         let p = &pixels[y as usize * header.width as usize + x as usize];
-                        v[((header.height - 1) - y) as usize * header.width as usize + x as usize] = Color(p.0, p.1, p.2);
+                        v[((header.height - 1) - y) as usize * header.width as usize
+                            + x as usize] = Color(p.0, p.1, p.2);
                     }
                 }
                 v
             };
-            
+
             return Image {
                 width: header.width as i32,
                 height: header.height as i32,
-                data: data_correct
-            }
-
+                data: data_correct,
+            };
         }
     }
 

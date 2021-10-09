@@ -70,7 +70,9 @@ impl Into<Matrix<1, 3>> for &Vec3f {
 
 pub trait MatrixI<const X: usize, const Y: usize> {
     fn zeroed() -> Self;
-    fn inverse(&self) -> Self where [(); X*2]: Sized;
+    fn inverse(&self) -> Self
+    where
+        [(); X * 2]: Sized;
     fn transpose(&self) -> Matrix<Y, X>;
     fn mul<const XX: usize, const YY: usize>(&self, matrix: &Matrix<XX, YY>) -> Matrix<XX, Y>;
 }
@@ -90,11 +92,13 @@ impl<const X: usize, const Y: usize> MatrixI<X, Y> for Matrix<X, Y> {
     }
 
     fn inverse(&self) -> Self
-    where [(); X*2]: Sized  {
+    where
+        [(); X * 2]: Sized,
+    {
         assert!(self.len() == self[0].len());
         let n = self.len();
         let mut aug = {
-            let mut r: Matrix<{X*2}, Y> = Matrix::zeroed();
+            let mut r: Matrix<{ X * 2 }, Y> = Matrix::zeroed();
             for y in 0..n {
                 for x in 0..n {
                     r[y][x] = self[y][x];
@@ -174,12 +178,21 @@ pub fn interpolate(a: f32, b: f32, t: f32) -> f32 {
 }
 
 pub fn interpolatev(a: &Vec3f, b: &Vec3f, t: f32) -> Vec3f {
-    Vec3f(interpolate(a.0, b.0, t), interpolate(a.1, b.1, t), interpolate(a.2, b.2, t))
+    Vec3f(
+        interpolate(a.0, b.0, t),
+        interpolate(a.1, b.1, t),
+        interpolate(a.2, b.2, t),
+    )
 }
 
 pub fn barycentric(a: &Vec3f, b: &Vec3f, c: &Vec3f, p: (f32, f32)) -> Vec3f {
-    let cross = Vec3f(c.0 - a.0, b.0 - a.0, a.0 - p.0).cross(&Vec3f(c.1 - a.1, b.1 - a.1, a.1 - p.1));
-    Vec3f(1.0 - (cross.1 + cross.0)/cross.2, cross.1/cross.2, cross.0/cross.2,)
+    let cross =
+        Vec3f(c.0 - a.0, b.0 - a.0, a.0 - p.0).cross(&Vec3f(c.1 - a.1, b.1 - a.1, a.1 - p.1));
+    Vec3f(
+        1.0 - (cross.1 + cross.0) / cross.2,
+        cross.1 / cross.2,
+        cross.0 / cross.2,
+    )
 }
 
 pub fn persp(c: f32, v1: &Vec3f) -> Vec3f {

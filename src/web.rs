@@ -1,15 +1,15 @@
-use anyhow::{Error};
+use anyhow::Error;
 use wasm_bindgen::{Clamped, JsCast};
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, MouseEvent};
-use yew::format::{Nothing};
+use yew::format::Nothing;
 use yew::services::fetch::{FetchTask, Request, Response, Uri};
 use yew::services::{ConsoleService, FetchService};
 use yew::{html, Component, Html, NodeRef};
 
-use crate::la::{Matrix, MatrixI, Vec3f, get_look_at, look_at, persp};
-use crate::shader::{BasicShader, LightShader, Shader, ShaderConf, triangle};
-use crate::tga::Image;
+use crate::la::{get_look_at, look_at, persp, Matrix, MatrixI, Vec3f};
 use crate::model::{self, Wavefront};
+use crate::shader::{triangle, BasicShader, LightShader, Shader, ShaderConf};
+use crate::tga::Image;
 
 pub enum Msg {
     Texture(Vec<u8>),
@@ -44,7 +44,7 @@ pub struct Model {
     campos: Vec3f,
     camplace: Vec3f,
     rotation_start: Option<(i32, i32, Vec3f)>,
-    move_start: Option<(i32, i32, Vec3f)>
+    move_start: Option<(i32, i32, Vec3f)>,
 }
 
 impl Model {
@@ -85,16 +85,21 @@ impl Model {
         }
 
         let light_model = model::Model {
-            model: Wavefront { 
-                vertices: vec![Vec3f(-1.0, -1.0, 0.0), Vec3f(1.0, -1.0, 0.0), Vec3f(1.0, 1.0, 0.0), Vec3f(-1.0, 1.0, 0.0), ], 
-                texture_coord: vec![[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]], 
-                normals: Vec::new(), 
-                faces: vec![([3, 0, 1], [3, 0, 1]), ([3, 1, 2], [3, 1, 2])] 
+            model: Wavefront {
+                vertices: vec![
+                    Vec3f(-1.0, -1.0, 0.0),
+                    Vec3f(1.0, -1.0, 0.0),
+                    Vec3f(1.0, 1.0, 0.0),
+                    Vec3f(-1.0, 1.0, 0.0),
+                ],
+                texture_coord: vec![[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]],
+                normals: Vec::new(),
+                faces: vec![([3, 0, 1], [3, 0, 1]), ([3, 1, 2], [3, 1, 2])],
             },
             normal_map: Image::new(0, 0),
             texture: Image::new(0, 0),
         };
-    
+
         if self.conf.occlusion {
             let mut occl_texture = Image::new(width, height);
             let mut light_shader = LightShader {
@@ -107,7 +112,7 @@ impl Model {
                 varying_xy: Matrix::zeroed(),
                 occl_texture: &mut occl_texture,
             };
-        
+
             for f in 0..light_model.num_faces() {
                 let mut vertices = [Vec3f::zeroed(), Vec3f::zeroed(), Vec3f::zeroed()];
                 for v in 0..3 {
@@ -116,7 +121,6 @@ impl Model {
                 triangle(&vertices[0], &vertices[1], &vertices[2], &mut light_shader);
             }
         }
-        
 
         out_texture.apply_gamma(1.5);
 
@@ -133,11 +137,16 @@ impl Model {
     }
 
     fn prepare(&mut self) {
-        self.model = Some(model::Model::new(self.wavefront.take().unwrap(), self.normals.take().unwrap(), self.texture.take().unwrap()));
+        self.model = Some(model::Model::new(
+            self.wavefront.take().unwrap(),
+            self.normals.take().unwrap(),
+            self.texture.take().unwrap(),
+        ));
     }
 
     fn ready(&self) -> bool {
-        self.model.is_some() || (self.texture.is_some() && self.wavefront.is_some() && self.normals.is_some())
+        self.model.is_some()
+            || (self.texture.is_some() && self.wavefront.is_some() && self.normals.is_some())
     }
 
     fn load_binary(&mut self, url: String, dispatch: fn(Vec<u8>) -> Msg) {
@@ -184,7 +193,7 @@ impl Component for Model {
             campos: Vec3f(0.5, 0.5, 1.0),
             camplace: Vec3f(0.0, 0.0, 0.0),
             rotation_start: None,
-            move_start: None
+            move_start: None,
         }
     }
 
@@ -286,27 +295,32 @@ impl Component for Model {
                 }
                 true
             }
-            Msg::RotationStarted(x , y) => {
+            Msg::RotationStarted(x, y) => {
                 self.rotation_start = Some((x, y, self.campos));
                 true
-            },
+            }
             Msg::Noop => false,
             Msg::RotationEnded => {
                 self.rotation_start = None;
                 true
-            },
+            }
             Msg::MoveStarted(x, y) => {
                 self.move_start = Some((x, y, self.camplace));
                 true
-            },
+            }
             Msg::MoveEnded => {
                 self.move_start = None;
                 true
-            },
+            }
             Msg::UpdC(Vec3f(dx, dy, _), old_place) => {
                 ConsoleService::log(format!("{:?}, {:?}", dx, dy).as_str());
-                let camvec = Vec3f(self.campos.0, 0.0, self.campos.2).normalize().mulf(dy/500.0);
-                let perp: Vec3f = Vec3f(0.0, 1.0, 0.0).cross(&self.campos).normalize().mulf(dx/500.0);
+                let camvec = Vec3f(self.campos.0, 0.0, self.campos.2)
+                    .normalize()
+                    .mulf(dy / 500.0);
+                let perp: Vec3f = Vec3f(0.0, 1.0, 0.0)
+                    .cross(&self.campos)
+                    .normalize()
+                    .mulf(dx / 500.0);
 
                 self.camplace = old_place.add(&perp).add(&camvec);
 
@@ -314,7 +328,7 @@ impl Component for Model {
                     self.render();
                 }
                 true
-            },
+            }
         }
     }
 
@@ -356,9 +370,9 @@ impl Component for Model {
                         Msg::UpdC(Vec3f(dx as f32, dy as f32, 0.0), old_place)
                     }).unwrap_or(Msg::Noop)
                 }
-                
+
             })>
-                <canvas 
+                <canvas
                 ref={self.node_ref.clone()} width="512" height="512" />
                 <div class="menu">
                     { if self.ready() { html! {

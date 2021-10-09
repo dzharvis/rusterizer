@@ -10,10 +10,15 @@ mod shader;
 mod tga;
 #[cfg(not(feature = "local"))]
 mod web;
+#[cfg(feature = "local")]
+use crate::{
+    la::{get_look_at, look_at, Matrix, MatrixI, Vec3f},
+    model::Model,
+    shader::{triangle, BasicShader, Shader, ShaderConf},
+    tga::Image,
+};
 #[cfg(not(feature = "local"))]
 use web::web;
-#[cfg(feature = "local")]
-use crate::{la::{Matrix, MatrixI, Vec3f, get_look_at, look_at}, model::Model, shader::{BasicShader, Shader, ShaderConf, triangle}, tga::Image};
 
 #[cfg(not(feature = "local"))]
 fn main() {
@@ -68,11 +73,16 @@ fn main() {
     }
 
     let light_model = Model {
-        model: Wavefront { 
-            vertices: vec![Vec3f(-1.0, -1.0, 0.0), Vec3f(1.0, -1.0, 0.0), Vec3f(1.0, 1.0, 0.0), Vec3f(-1.0, 1.0, 0.0), ], 
-            texture_coord: vec![[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]], 
-            normals: Vec::new(), 
-            faces: vec![([3, 0, 1], [3, 0, 1]), ([3, 1, 2], [3, 1, 2])] 
+        model: Wavefront {
+            vertices: vec![
+                Vec3f(-1.0, -1.0, 0.0),
+                Vec3f(1.0, -1.0, 0.0),
+                Vec3f(1.0, 1.0, 0.0),
+                Vec3f(-1.0, 1.0, 0.0),
+            ],
+            texture_coord: vec![[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]],
+            normals: Vec::new(),
+            faces: vec![([3, 0, 1], [3, 0, 1]), ([3, 1, 2], [3, 1, 2])],
         },
         normal_map: Image::new(0, 0),
         texture: Image::new(0, 0),
@@ -104,5 +114,3 @@ fn main() {
     light_texture.write_to_tga("light.tga").unwrap();
     occl_texture.write_to_tga("occl.tga").unwrap();
 }
-
-

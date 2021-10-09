@@ -1,6 +1,9 @@
 use std::fs;
 
-use crate::{la::Vec3f, tga::{Color, Image}};
+use crate::{
+    la::Vec3f,
+    tga::{Color, Image},
+};
 
 pub struct Model {
     pub model: Wavefront,
@@ -9,7 +12,6 @@ pub struct Model {
 }
 
 impl Model {
-
     pub fn new(wf: Wavefront, nm: Image, txt: Image) -> Self {
         Model {
             model: wf,
