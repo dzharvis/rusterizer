@@ -9,7 +9,33 @@ You can try it online here [https://dzharvis.github.io/rusterizer/](https://dzha
   <img src="img/2.png" width="300"/>
 </p>
 
+## Build
+### Locally
+#### Prerequisites
+ - rustup
+ - cargo
+
+```bash
+> rustup update
+> rustup default nightly
+> cargo run --features=local
+```
+
+### Web
+#### Prerequisites
+ - trunk
+ - python3
+ - rustup
+ - cargo
+
+```bash
+> rustup update
+> rustup default nightly
+> rustup target add wasm32-unknown-unknown
+> ./build.sh
+```
+
 
 ### Todo
- - [ ] Make parallel using web workers
- - [ ] Refactor code 
+ - [ ] Write manual SIMD for matrices
+ - [ ] Refactor code

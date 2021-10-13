@@ -92,9 +92,9 @@ impl Shader for LightShader<'_> {
                 x,
                 y,
                 Color(
-                    (total * 254.0) as u8 + 1,
-                    (total * 254.0) as u8 + 1,
-                    (total * 254.0) as u8 + 1,
+                    (total * 254.0).min(254.0) as u8 + 1,
+                    (total * 254.0).min(254.0) as u8 + 1,
+                    (total * 254.0).min(254.0) as u8 + 1,
                 ),
             );
             let texture = self.out_texture.pixel_at(x, y);
