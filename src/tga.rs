@@ -23,6 +23,7 @@ impl Color {
 #[derive(Clone, Debug)]
 pub struct ColorA(pub u8, pub u8, pub u8, pub u8);
 
+#[derive(Clone, Debug)]
 pub struct Image {
     pub width: i32,
     pub height: i32,

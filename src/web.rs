@@ -1,15 +1,37 @@
+use std::time::Duration;
+
 use anyhow::Error;
 use wasm_bindgen::{Clamped, JsCast};
 use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, MouseEvent};
 use yew::format::Nothing;
 use yew::services::fetch::{FetchTask, Request, Response, Uri};
-use yew::services::{ConsoleService, FetchService};
+use yew::services::interval::IntervalTask;
+use yew::services::{ConsoleService, FetchService, IntervalService};
 use yew::{html, Component, Html, NodeRef};
 
 use crate::la::{get_look_at, look_at, persp, Matrix, MatrixI, Vec3f};
 use crate::model::{self, Wavefront};
 use crate::shader::{triangle, BasicShader, LightShader, Shader, ShaderConf};
 use crate::tga::Image;
+#[cfg(not(target_arch = "wasm32"))]
+unsafe fn uses_simd() {
+    ConsoleService::log("123");
+}
+
+#[cfg(target_arch = "wasm32")]
+#[target_feature(enable = "simd128")]
+unsafe fn uses_simd() {
+    use std::arch::wasm32::*;
+
+    use yew::services::ConsoleService;
+    let a: [u32; 4] = [0; 4];
+    let b: [u32; 4] = [0; 4];
+
+    unsafe {
+        let ff = f32x4(0.0, 0.1, 0.1, 0.1);
+        ConsoleService::log(format!("SIMD {:?}", ff).as_str());
+    }
+}
 
 pub enum Msg {
     Texture(Vec<u8>),
@@ -19,11 +41,13 @@ pub enum Msg {
     UpdC(Vec3f, Vec3f),
     Load(ModelType),
     Diff,
+    Pulse,
     Spec,
     Txt,
     Zbuff,
     Norm,
     Occl,
+    Anim,
     RotationStarted(i32, i32),
     RotationEnded,
     MoveStarted(i32, i32),
@@ -43,12 +67,14 @@ pub struct Model {
     props: (),
     link: yew::ComponentLink<Self>,
     task: Vec<Option<FetchTask>>,
+    int_task: Vec<Option<IntervalTask>>,
     texture: Option<Image>,
     wavefront: Option<Wavefront>,
     normals: Option<Image>,
     model: Option<model::Model>,
     model_type: ModelType,
     campos: Vec3f,
+    animation: Option<f32>,
     camplace: Vec3f,
     rotation_start: Option<(i32, i32, Vec3f)>,
     move_start: Option<(i32, i32, Vec3f)>,
@@ -56,6 +82,9 @@ pub struct Model {
 
 impl Model {
     fn render(&mut self) {
+        unsafe {
+            uses_simd();
+        }
         let width: i32 = 512;
         let height: i32 = 512;
         let mut out_texture = Image::new(width, height);
@@ -67,7 +96,19 @@ impl Model {
         let lookat_i = lookat.inverse().transpose();
         let light_dir: Vec3f = persp(5.0, &look_at(&lookat, &Vec3f(1.0, -0.0, 0.5)));
 
-        let model = self.model.as_ref().unwrap();
+        // let model = ;
+
+        let mut model_handler = None;
+
+        let model = if self.animation.is_some() {
+            let mut model = self.model.as_ref().unwrap().clone();
+            self.animation = Some(animate(&mut model, self.animation.unwrap()));
+            model_handler = Some(model);
+            model_handler.as_ref().unwrap()
+        } else {
+            self.model.as_ref().unwrap()
+        };
+
         let mut shader = BasicShader {
             conf: self.conf.clone(),
             normal_face_vec: None,
@@ -172,6 +213,32 @@ impl Model {
     }
 }
 
+fn animate(model: &mut model::Model, anim: f32) -> f32 {
+    // hacky way to store direction
+    let anim_v = if anim > 2.0 {
+        3.0 - anim 
+    } else {
+        anim - 1.0
+    };
+
+    for Vec3f(x, y, z) in &mut model.model.vertices {
+        let intensity = (0.2 - (anim_v - *y).abs().min(0.2))/0.2;
+        let r = 7919.0 * *x * 7589.0 * *y * 3433.0 * *z;
+        let r = r.round() as i32 % 10;
+        let r = r as f32 / 1.5;
+        let Vec3f(_x, _y, _z) = Vec3f(*x, 0.0, *z).normalize().mulf(intensity/(10.0 - r)).add(&Vec3f(*x, 0.0, *z));
+        *x = _x;
+        *z = _z;
+    }
+
+    if anim >= 4.0 {
+        0.0
+    } else {
+        anim + 0.01
+    }
+
+}
+
 impl Component for Model {
     type Message = Msg;
     type Properties = ();
@@ -190,6 +257,7 @@ impl Component for Model {
             zbuff: false,
             conf: ShaderConf::new(),
             task: Vec::new(),
+            int_task: Vec::new(),
             link,
             props,
             node_ref: NodeRef::default(),
@@ -197,6 +265,7 @@ impl Component for Model {
             wavefront: None,
             normals: None,
             model: None,
+            animation: None,
             model_type: ModelType::AFRICAN,
             campos: Vec3f(0.5, 0.5, 1.0),
             camplace: Vec3f(0.0, 0.0, 0.0),
@@ -378,6 +447,20 @@ impl Component for Model {
                 }
                 false
             }
+            Msg::Anim => {
+                let t = IntervalService::spawn(Duration::from_millis(30), self.link.callback(move |_| {
+                    Msg::Pulse
+                }));
+                self.animation = Some(0.0);
+                self.int_task.push(Some(t));
+                false
+            },
+            Msg::Pulse => {
+                if self.ready() {
+                    self.render();
+                }
+                false
+            }
         }
     }
 
@@ -447,6 +530,7 @@ impl Component for Model {
                             <button class=if self.conf.normals { "" } else { "off" } disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Norm)>{ "Normal map" }</button>
                             <button class=if self.conf.occlusion { "" } else { "off" } disabled={ self.zbuff } onclick=self.link.callback(move |_| Msg::Occl)>{ "Ambient occlusion" }</button>
                             <button onclick=self.link.callback(move |_| Msg::Zbuff)>{ "Z Buffer" }</button>
+                            <button onclick=self.link.callback(move |_| Msg::Anim)>{ "Animate" }</button>
                             <div style="height: 100px"></div>
                             <button class=if let ModelType::AFRICAN=self.model_type { "off" } else { "" } onclick=self.link.callback(move |_| Msg::Load(ModelType::AFRICAN))>{ "African head" }</button>
                             <button class=if let ModelType::DIABLO=self.model_type { "off" } else { "" } onclick=self.link.callback(move |_| Msg::Load(ModelType::DIABLO))>{ "Diablo" }</button>

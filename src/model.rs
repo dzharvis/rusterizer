@@ -5,6 +5,7 @@ use crate::{
     tga::{Color, Image},
 };
 
+#[derive(Clone, Debug)]
 pub struct Model {
     pub model: Wavefront,
     pub normal_map: Image,

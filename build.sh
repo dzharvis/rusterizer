@@ -9,7 +9,7 @@ cat > index.html <<- EOM
   </head>
 </html>
 EOM
-trunk build --release
+RUSTFLAGS="-C target-feature=+simd128 -C opt-level=3" ./trunk build --release
 rm index.html
 cd dist
 
