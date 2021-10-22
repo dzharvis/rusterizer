@@ -48,8 +48,8 @@ pub struct Model {
     normals: Option<Image>,
     model: Option<model::Model>,
     model_type: ModelType,
-    campos: Vec3f,
-    camplace: Vec3f,
+    camvec: Vec3f,
+    cam_lookat: Vec3f,
     rotation_start: Option<(i32, i32, Vec3f)>,
     move_start: Option<(i32, i32, Vec3f)>,
 }
@@ -62,18 +62,18 @@ impl Model {
         let mut z_buffer = Image::new(width, height);
         let mut light_texture = Image::new(width, height);
 
-        let campos = &self.campos;
-        let lookat = get_look_at(&campos.add(&self.camplace), &self.camplace);
-        let lookat_i = lookat.inverse().transpose();
-        let light_dir: Vec3f = persp(5.0, &look_at(&lookat, &Vec3f(1.0, -0.0, 0.5)));
+        let camvec = &self.camvec;
+        let lookat_m = get_look_at(&camvec.add(&self.cam_lookat), &self.cam_lookat);
+        let lookat_mi = lookat_m.inverse().transpose();
+        let light_dir: Vec3f = persp(5.0, &look_at(&lookat_m, &Vec3f(1.0, -0.0, 0.5))).normalize();
 
         let model = self.model.as_ref().unwrap();
         let mut shader = BasicShader {
             conf: self.conf.clone(),
             normal_face_vec: None,
-            light_dir: light_dir.normalize(),
-            lookat_m: lookat,
-            lookat_mi: lookat_i,
+            light_dir,
+            lookat_m,
+            lookat_mi,
             model,
             out_texture: &mut out_texture,
             z_buffer: &mut z_buffer,
@@ -91,21 +91,7 @@ impl Model {
             triangle(&vertices[0], &vertices[1], &vertices[2], &mut shader);
         }
 
-        let light_model = model::Model {
-            model: Wavefront {
-                vertices: vec![
-                    Vec3f(-1.0, -1.0, 0.0),
-                    Vec3f(1.0, -1.0, 0.0),
-                    Vec3f(1.0, 1.0, 0.0),
-                    Vec3f(-1.0, 1.0, 0.0),
-                ],
-                texture_coord: vec![[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]],
-                normals: Vec::new(),
-                faces: vec![([3, 0, 1], [3, 0, 1]), ([3, 1, 2], [3, 1, 2])],
-            },
-            normal_map: Image::new(0, 0),
-            texture: Image::new(0, 0),
-        };
+        let light_model = model::Model::screen_texture_model();
 
         if self.conf.occlusion {
             let mut occl_texture = Image::new(width, height);
@@ -198,8 +184,8 @@ impl Component for Model {
             normals: None,
             model: None,
             model_type: ModelType::AFRICAN,
-            campos: Vec3f(0.5, 0.5, 1.0),
-            camplace: Vec3f(0.0, 0.0, 0.0),
+            camvec: Vec3f(0.5, 0.5, 1.0),
+            cam_lookat: Vec3f(0.0, 0.0, 0.0),
             rotation_start: None,
             move_start: None,
         }
@@ -207,9 +193,9 @@ impl Component for Model {
 
     fn rendered(&mut self, first_render: bool) {
         if first_render {
-            self.load_binary("./african_head/texture.tga".to_owned(), |v| Msg::Texture(v));
-            self.load_binary("./african_head/normals.tga".to_owned(), |v| Msg::Normals(v));
-            self.load_binary("./african_head/model.obj".to_owned(), |v| Msg::Model(v));
+            self.load_binary("./african_head/texture.tga".to_owned(), Msg::Texture);
+            self.load_binary("./african_head/normals.tga".to_owned(), Msg::Normals);
+            self.load_binary("./african_head/model.obj".to_owned(), Msg::Model);
         }
     }
 
@@ -273,7 +259,7 @@ impl Component for Model {
                 true
             }
             Msg::Upd(v) => {
-                self.campos = v;
+                self.camvec = v;
                 if self.ready() {
                     self.render();
                 }
@@ -304,7 +290,7 @@ impl Component for Model {
                 true
             }
             Msg::RotationStarted(x, y) => {
-                self.rotation_start = Some((x, y, self.campos));
+                self.rotation_start = Some((x, y, self.camvec));
                 true
             }
             Msg::Noop => false,
@@ -313,7 +299,7 @@ impl Component for Model {
                 true
             }
             Msg::MoveStarted(x, y) => {
-                self.move_start = Some((x, y, self.camplace));
+                self.move_start = Some((x, y, self.cam_lookat));
                 true
             }
             Msg::MoveEnded => {
@@ -322,15 +308,15 @@ impl Component for Model {
             }
             Msg::UpdC(Vec3f(dx, dy, _), old_place) => {
                 ConsoleService::log(format!("{:?}, {:?}", dx, dy).as_str());
-                let camvec = Vec3f(self.campos.0, 0.0, self.campos.2)
+                let camvec = Vec3f(self.camvec.0, 0.0, self.camvec.2)
                     .normalize()
                     .mulf(dy / 500.0);
                 let perp: Vec3f = Vec3f(0.0, 1.0, 0.0)
-                    .cross(&self.campos)
+                    .cross(&self.camvec)
                     .normalize()
                     .mulf(dx / 500.0);
 
-                self.camplace = old_place.add(&perp).add(&camvec);
+                self.cam_lookat = old_place.add(&perp).add(&camvec);
 
                 if self.ready() {
                     self.render();
@@ -372,7 +358,7 @@ impl Component for Model {
                             self.load_binary("./diablo/normals.tga".to_owned(), |v| {
                                 Msg::Normals(v)
                             });
-                            self.load_binary("./diablo/model.obj".to_owned(), |v| Msg::Model(v));
+                            self.load_binary("./diablo/model.obj".to_owned(), Msg::Model);
                         }
                     }
                 }
@@ -382,9 +368,9 @@ impl Component for Model {
     }
 
     fn view(&self) -> Html {
-        let Vec3f(x, y, z) = self.campos;
-        let pos = self.rotation_start.clone();
-        let place = self.move_start.clone();
+        let Vec3f(x, y, z) = self.camvec;
+        let pos = self.rotation_start;
+        let place = self.move_start;
         html! {
             <div class="rusterizer-window"
             oncontextmenu=self.link.callback(move |e: MouseEvent| {

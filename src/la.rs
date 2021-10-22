@@ -82,7 +82,7 @@ pub type Matrix<const X: usize, const Y: usize> = [[f32; X]; Y];
 impl<const T: usize> Into<Vec3f> for Matrix<1, T> {
     fn into(self) -> Vec3f {
         assert!(self[0].len() == 1);
-        return Vec3f(self[0][0], self[1][0], self[2][0]);
+        Vec3f(self[0][0], self[1][0], self[2][0])
     }
 }
 
@@ -112,14 +112,12 @@ impl<const X: usize, const Y: usize> MatrixI<X, Y> for Matrix<X, Y> {
             r
         };
         for y in 0..n {
-            if aug[y][y] == 0.0f32 {
-                panic!("it's a bad idea to divide by zero");
-            }
+            assert!(aug[y][y] != 0.0f32, "it's a bad idea to divide by zero");
             for x in 0..n {
                 if x != y {
                     let r = aug[x][y] / aug[y][y];
                     for k in 0..n * 2 {
-                        aug[x][k] = aug[x][k] - r * aug[y][k];
+                        aug[x][k] -= r * aug[y][k];
                     }
                 }
             }
@@ -127,7 +125,7 @@ impl<const X: usize, const Y: usize> MatrixI<X, Y> for Matrix<X, Y> {
 
         for y in 0..n {
             for x in n..n * 2 {
-                aug[y][x] = aug[y][x] / aug[y][y];
+                aug[y][x] /= aug[y][y];
             }
         }
 
@@ -138,7 +136,7 @@ impl<const X: usize, const Y: usize> MatrixI<X, Y> for Matrix<X, Y> {
             }
         }
 
-        return res;
+        res
     }
 
     fn transpose(&self) -> Matrix<Y, X> {
@@ -148,7 +146,7 @@ impl<const X: usize, const Y: usize> MatrixI<X, Y> for Matrix<X, Y> {
                 res[x][y] = self[y][x];
             }
         }
-        return res;
+        res
     }
 
     fn mul<const XX: usize, const YY: usize>(&self, matrix: &Matrix<XX, YY>) -> Matrix<XX, Y> {
@@ -206,7 +204,7 @@ pub fn persp(c: f32, v1: &Vec3f) -> Vec3f {
 pub fn get_look_at(p: &Vec3f, c: &Vec3f) -> Matrix<4, 4> {
     let up = Vec3f(0.0, 1.0, 0.0);
 
-    let z = p.sub(&c).normalize();
+    let z = p.sub(c).normalize();
     let x = up.cross(&z).normalize();
     let y = z.cross(&x).normalize();
 
@@ -224,8 +222,7 @@ pub fn get_look_at(p: &Vec3f, c: &Vec3f) -> Matrix<4, 4> {
         [0.0, 0.0, 0.0, 1.0],
     ];
 
-    let mv = minv.mul(&tr); // 4x4
-    return mv;
+    minv.mul(&tr) // 4x4
 }
 
 pub fn look_at(m: &Matrix<4, 4>, v: &Vec3f) -> Vec3f {

@@ -73,6 +73,7 @@ impl Shader for LightShader<'_> {
         let current_z = self.z_buffer.pixel_at(x, y).0 as f32 / 255.0;
         // let [[u],[v]] = self.varying_uv.mul(&bar_mtrx);
         let mut total = 0.0;
+        // hacky screen space ambient occlusion
         for yy in (y - 5).max(0)..(y + 5).min(self.out_texture.height) {
             for xx in (x - 5).max(0)..(x + 5).min(self.out_texture.width) {
                 let surr_z = self.z_buffer.pixel_at(xx, yy).0 as f32 / 255.0;
@@ -85,8 +86,9 @@ impl Shader for LightShader<'_> {
             }
         }
 
-        total = total / 2.0;
+        total /= 2.0;
 
+        // check if not already set
         if self.occl_texture.pixel_at(x, y).0 == 0 {
             self.occl_texture.set_pixel(
                 x,
@@ -140,6 +142,7 @@ impl Shader for BasicShader<'_> {
         self.varying_xy[2][vertex] = ss.2;
 
         // todo refactor
+        // set vector that is perpendicular to current triangle
         if vertex == 2 {
             self.normal_face_vec = Some(
                 self.vertices[1]
@@ -153,6 +156,7 @@ impl Shader for BasicShader<'_> {
     }
 
     fn fragment(&mut self, bar: &Vec3f) {
+        // check inside a triangle
         if bar.0 < 0.0 || bar.1 < 0.0 || bar.2 < 0.0 {
             return;
         }
@@ -194,11 +198,7 @@ impl Shader for BasicShader<'_> {
         let light_spec = reflected.2.powf(23.0); // cam on z
 
         let mut highlight = if self.conf.diff_light { light } else { 0.0f32 };
-        highlight += if self.conf.spec_light {
-            light_spec * 0.9
-        } else {
-            0.0
-        };
+        highlight += if self.conf.spec_light { light_spec * 0.9 } else { 0.0 };
 
         let hc = (((highlight + 2.0) / 2.0) * 255.0 / 2.0).round() as u8;
         self.light_texture.set_pixel(x, y, Color(hc, hc, hc));
@@ -244,7 +244,7 @@ pub fn triangle(v1: &Vec3f, v2: &Vec3f, v3: &Vec3f, sh: &mut dyn Shader) {
 
     for y in y0..=y1 {
         for x in x0..=x1 {
-            let bc = barycentric(&v1, &v2, &v3, (x as f32, y as f32));
+            let bc = barycentric(v1, v2, v3, (x as f32, y as f32));
             sh.fragment(&bc);
         }
     }
@@ -269,7 +269,7 @@ fn line(
         for x in x0..=x1 {
             let t = ((x - x0) as f32) / ((x1 - x0) as f32);
             let y = (y0 as f32) * (1f32 - t) + (y1 as f32) * t;
-            img.set_pixel(x as i32, y.round() as i32, color.clone());
+            img.set_pixel(x as i32, y.round() as i32, color);
         }
     } else {
         if y1 < y0 {
@@ -279,7 +279,7 @@ fn line(
         for y in y0..=y1 {
             let t = ((y - y0) as f32) / ((y1 - y0) as f32);
             let x = (x0 as f32) * (1f32 - t) + (x1 as f32) * t;
-            img.set_pixel(x.round() as i32, y as i32, color.clone());
+            img.set_pixel(x.round() as i32, y as i32, color);
         }
     }
 }

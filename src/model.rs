@@ -20,6 +20,24 @@ impl Model {
         }
     }
 
+    pub fn screen_texture_model() -> Self {
+        Model {
+            model: Wavefront {
+                vertices: vec![
+                    Vec3f(-1.0, -1.0, 0.0),
+                    Vec3f(1.0, -1.0, 0.0),
+                    Vec3f(1.0, 1.0, 0.0),
+                    Vec3f(-1.0, 1.0, 0.0),
+                ],
+                texture_coord: vec![[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]],
+                normals: Vec::new(),
+                faces: vec![([3, 0, 1], [3, 0, 1]), ([3, 1, 2], [3, 1, 2])],
+            },
+            normal_map: Image::new(0, 0),
+            texture: Image::new(0, 0),
+        }
+    }
+
     pub fn num_faces(&self) -> usize {
         self.model.faces.len()
     }
@@ -143,6 +161,6 @@ impl Wavefront {
             }
         }
 
-        return Wavefront::new(vertices, faces, normals, tc);
+        Wavefront::new(vertices, faces, normals, tc)
     }
 }

@@ -27,7 +27,7 @@ fn main() {
 
 #[cfg(feature = "local")]
 fn main() {
-    use model::Wavefront;
+    use model::{Model, Wavefront};
     use shader::LightShader;
 
     let width: i32 = 1000;
@@ -42,18 +42,18 @@ fn main() {
 
     let model = Model::new(wavefront, model_normals, model_texture);
 
-    let campos = Vec3f(0.5, 0.5, 1.0);
-    let c = Vec3f(0.0, 0.0, 0.0);
-    let lookat = get_look_at(&campos, &c);
-    let lookat_i = lookat.inverse().transpose();
-    let light_dir: Vec3f = look_at(&lookat, &Vec3f(1.0, -0.0, 0.5).normalize());
+    let camvec = Vec3f(0.5, 0.5, 1.0);
+    let cam_lookat = Vec3f(0.0, 0.0, 0.0);
+    let lookat_m = get_look_at(&camvec, &cam_lookat);
+    let lookat_mi = lookat_m.inverse().transpose();
+    let light_dir: Vec3f = look_at(&lookat_m, &Vec3f(1.0, -0.0, 0.5).normalize()).normalize();
 
     // println!("{:?}", lookat.mul(&lookat_i));
     let mut shader = BasicShader {
         conf: ShaderConf::new(),
-        light_dir: light_dir.normalize(),
-        lookat_m: lookat,
-        lookat_mi: lookat_i,
+        light_dir,
+        lookat_m,
+        lookat_mi,
         model: &model,
         out_texture: &mut out_texture,
         z_buffer: &mut z_buffer,
@@ -72,21 +72,7 @@ fn main() {
         triangle(&vertices[0], &vertices[1], &vertices[2], &mut shader);
     }
 
-    let light_model = Model {
-        model: Wavefront {
-            vertices: vec![
-                Vec3f(-1.0, -1.0, 0.0),
-                Vec3f(1.0, -1.0, 0.0),
-                Vec3f(1.0, 1.0, 0.0),
-                Vec3f(-1.0, 1.0, 0.0),
-            ],
-            texture_coord: vec![[-1.0, -1.0], [1.0, -1.0], [1.0, 1.0], [-1.0, 1.0]],
-            normals: Vec::new(),
-            faces: vec![([3, 0, 1], [3, 0, 1]), ([3, 1, 2], [3, 1, 2])],
-        },
-        normal_map: Image::new(0, 0),
-        texture: Image::new(0, 0),
-    };
+    let light_model = Model::screen_texture_model(); 
 
     let mut occl_texture = Image::new(width, height);
     let mut light_shader = LightShader {
