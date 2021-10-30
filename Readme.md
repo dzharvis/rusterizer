@@ -35,6 +35,8 @@ You can try it online here [https://dzharvis.github.io/rusterizer/](https://dzha
 > ./build.sh
 ```
 
+### Kudos
+This project was implemented by following the [ssloy/tinyrenderer](https://github.com/ssloy/tinyrenderer) lessons.
 
 ### Todo
  - [ ] Write manual SIMD for matrices
